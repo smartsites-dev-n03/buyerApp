@@ -5,10 +5,10 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:untitled1/loginPage.dart';
-import 'package:untitled1/ui/cartPage.dart';
-import 'package:untitled1/ui/productDetailPage.dart';
-import 'package:untitled1/ui/splash.dart';
+import 'package:buyerApp/loginPage.dart';
+import 'package:buyerApp/ui/cartPage.dart';
+import 'package:buyerApp/ui/productDetailPage.dart';
+import 'package:buyerApp/ui/splash.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 

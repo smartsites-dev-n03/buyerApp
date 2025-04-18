@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:untitled1/ui/homepage.dart';
+import 'package:buyerApp/ui/homepage.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -13,8 +13,6 @@ class EnterOtpPage extends StatefulWidget {
 
 class _EnterOtpPageState extends State<EnterOtpPage> {
   final TextEditingController _emailController = TextEditingController();
-
-  bool _obsecure = true;
 
   void _enterOtp() {
     String email = _emailController.text.trim();

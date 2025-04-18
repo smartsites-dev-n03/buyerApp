@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:untitled1/loginPage.dart';
-import 'package:untitled1/ui/staticHomepage.dart';
+import 'package:buyerApp/loginPage.dart';
+import 'package:buyerApp/ui/staticHomepage.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

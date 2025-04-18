@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:untitled1/forgotPasswordPage.dart';
-import 'package:untitled1/loginPage.dart';
-import 'package:untitled1/ui/homepage.dart';
+import 'package:buyerApp/forgotPasswordPage.dart';
+import 'package:buyerApp/loginPage.dart';
+import 'package:buyerApp/ui/homepage.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';

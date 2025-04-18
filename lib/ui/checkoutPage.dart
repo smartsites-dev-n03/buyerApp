@@ -1,19 +1,19 @@
 import 'dart:convert';
-import 'dart:developer'
-import 'dart:io';;
-
+import 'dart:developer';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
+import 'package:khalti_flutter/khalti_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled1/ui/staticHomepage.dart';
+import '../integration/khalti.dart';
+import 'staticHomepage.dart';
 
 enum PaymentMethod { esewa, cod, khalti }
 
@@ -55,33 +55,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   PaymentMethod? _selectedPaymentMethod;
   String orderId = '';
 
-  List<Map<String, dynamic>> cartItems = [];
   double totalPrice = 0.0;
 
   @override
   void initState() {
     super.initState();
     getCurrentLocation();
-    loadCartItems();
     orderId = DateTime.now().millisecondsSinceEpoch.toString();
-  }
-
-  Future<void> loadCartItems() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> cart = prefs.getStringList('cart') ?? [];
-
-    setState(() {
-      cartItems = cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
-      calculateTotalPrice();
-    });
-  }
-
-  void calculateTotalPrice() {
-    totalPrice = 0.0;
-    for (var item in cartItems) {
-      double price = double.tryParse(item['price'].toString()) ?? 0.0;
-      totalPrice += price;
-    }
   }
 
   Future<void> generateAndDownloadPDF() async {
@@ -342,9 +322,52 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Proceeding to payment')),
+    KhaltiScope.of(context).pay(
+      config: PaymentConfig(
+          amount: (widget.price * 100).toInt(),
+          productIdentity: 'shopping-items',
+          productName: 'Shopping Items'
+      ),
+      preferences: [
+        PaymentPreference.khalti,
+        PaymentPreference.connectIPS,
+        PaymentPreference.eBanking,
+        PaymentPreference.mobileBanking,
+      ],
+
+      onSuccess: (success) {
+        print("Payment Success: $success");
+        sendOrderEmail(widget.selectedItems);
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Payment Successful'),
+              content: const Text('Your order has been placed successfully!'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => HomePage()),
+                    );
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      onFailure: (failure) {
+        print("Payment Failed: $failure");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment failed. Please try again.')),
+        );
+      },
     );
+
   }
 
   @override
@@ -368,7 +391,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 prefixIcon: Icon(Icons.person),
               ),
             ),
-            const SizedBox(height: 16),
+            /*const SizedBox(height: 16),
             TextFormField(
                 controller: _emailController,
                 cursorColor: Colors.red,
@@ -419,7 +442,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 prefixIcon: Icon(Icons.location_pin),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 16),*/
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -442,23 +465,45 @@ class _CheckoutPageState extends State<CheckoutPage> {
             Text("Payment Method: ", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
 
-            ..._options.map((option) {
+            DropdownButtonFormField<PaymentMethod>(
+              value: _selectedPaymentMethod,
+              items: PaymentMethod.values.map((method) {
+                return DropdownMenuItem(
+                  value: method,
+                  child: Text(method.name.toUpperCase()),
+                );
+              }).toList(),
+              onChanged: (method) {
+                log(method.toString());
+                setState(() {
+                  _selectedPaymentMethod = method;
+                });
+              },
+              decoration: const InputDecoration(
+                labelText: 'Select Payment Method',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            /*..._options.map((option) {
               return RadioListTile<String>(
                 title: Text(option),
                 value: option,
                 groupValue: _selectedPaymentMethod,
                 onChanged: (value) {
                   setState(() {
-                    _selectedPaymentMethod = value;
+                    _selectedPaymentMethod = option;
                   });
                 },
               );
-            }).toList(),
+            }).toList(),*/
 
 
-            SizedBox(height: 20),
+            SizedBox(height: 8),
+            const Text('Selected Items:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Expanded(
-              child: cartItems.isEmpty
+              child: widget.selectedItems.isEmpty
                   ? const Center(child: Text('Your cart is empty.'))
                   : SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -470,14 +515,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                   columnSpacing: 10,
                   columns:  [
-                    DataColumn(
-                      label: Center(child: Text('Image')),
-                    ),
+                    DataColumn(label: Center(child: Text('Image'))),
                     DataColumn(label: Text('Product')),
+                    DataColumn(label: Text('Qty')),
                     DataColumn(label: Text('Price')),
-                    DataColumn(label: Text('Remove')),
+                    DataColumn(label: Text('Total')),
                   ],
-                  rows: cartItems.map((item) {
+                  rows: widget.selectedItems.map((item) {
+                    int qty = item['qty'] ?? 1;
+                    double price = double.tryParse(item['price'].toString()) ?? 0.0;
+                    double itemTotal = qty * price;
+
                     return DataRow(
                       cells: [
                         DataCell(
@@ -491,19 +539,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           ),
                         ),
                         DataCell(Text(item['name'])),
-                        DataCell(Text('Rs.${item['price']}')),
-                        DataCell(
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              int index = cartItems.indexOf(item);
-                              //removeCartItem(index);
-                            },
-                          ),
-                        ),
+                        DataCell(Text('${qty}')),
+                        DataCell(Text('Rs.${price.toStringAsFixed(2)}')),
+                        DataCell(Text('Rs.${itemTotal.toStringAsFixed(2)}')),
                       ],
                     );
                   }).toList(),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Total: ",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "Rs.${widget.price.toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
               ),
             ),

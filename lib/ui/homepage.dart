@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_options.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:untitled1/models/categories.dart';
+import 'package:buyerApp/models/categories.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/productModel.dart';

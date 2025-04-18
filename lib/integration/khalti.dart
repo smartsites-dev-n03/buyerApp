@@ -6,7 +6,6 @@ class PaymentPage extends StatefulWidget {
   @override
   _PaymentPageState createState() => _PaymentPageState();
 }
-
 class _PaymentPageState extends State<PaymentPage> {
   /// Variables
   TextEditingController price = TextEditingController();
@@ -20,7 +19,7 @@ class _PaymentPageState extends State<PaymentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text("Khalti Payment"),
+          title: const Text("Khalti payment"),
         ),
         body:  Container(
           alignment: Alignment.center,
@@ -28,9 +27,11 @@ class _PaymentPageState extends State<PaymentPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Form(
+
                 child: Column(
                   children: [
                     TextField(
+
                       // The validator receives the text that the user has entered.
                         controller: price,
                         cursorColor: Colors.brown.shade800,
@@ -60,6 +61,8 @@ class _PaymentPageState extends State<PaymentPage> {
                           ),
                         )
                     ),
+
+
                   ],
                 ),
               ),
@@ -68,21 +71,20 @@ class _PaymentPageState extends State<PaymentPage> {
                 ElevatedButton.styleFrom(backgroundColor: const Color(0xff2424143)),
                 onPressed: () {
                   KhaltiScope.of(context).pay(
-                    config: PaymentConfig(
-                        amount:getAmt() ,
-                        productIdentity: 'laptop',
-                        productName: 'Dell laptop'
-                    ),
-                    preferences: [
-                      PaymentPreference.khalti,
-                      PaymentPreference.connectIPS
-                    ],
-                    onSuccess: (success){
+                      config: PaymentConfig(
+                          amount:getAmt() ,
+                          productIdentity: 'laptop',
+                          productName: 'Dell laptop'),
+                      preferences: [
+                        PaymentPreference.khalti,
+                        PaymentPreference.connectIPS
+                      ],
+                      onSuccess: (success){
 
-                    },
-                    onFailure: (failure){
+                      },
+                      onFailure: (failure){
 
-                    });
+                      });
                 },
                 child: const Text('Complete'),
               ),
