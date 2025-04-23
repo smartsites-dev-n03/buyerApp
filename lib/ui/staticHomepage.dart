@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '/integration/googleLogin.dart';
 import 'package:buyerApp/loginPage.dart';
 import 'package:buyerApp/ui/cartPage.dart';
 import 'package:buyerApp/ui/productDetailPage.dart';
@@ -30,10 +32,78 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadCartItems();
     loadProfileImage();
+    loadUserProducts();
     filteredProducts = products;
   }
 
   String? _imagePath;
+
+  Future<void> _startScanning() async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.9,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              child: ScannerView(
+                onBarcodeDetected: (String barcode) async {
+                  log(barcode);
+                  setState(() {
+                    _searchController = TextEditingController(text: barcode);
+                    filteredProducts =
+                        products.where((product) {
+                          final nameMatch = product['name']
+                              .toLowerCase()
+                              .contains(barcode.toLowerCase());
+                          final priceMatch =
+                              double.tryParse(barcode) != null &&
+                              product['price'].toString().contains(barcode);
+                          return nameMatch || priceMatch;
+                        }).toList();
+                  });
+                  if (filteredProducts.isEmpty) {
+                    Fluttertoast.showToast(
+                      msg: "No Product Found with this name",
+                    );
+                  }
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ),
+    );
+  }
+
+  Future<void> loadUserProducts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userProductStrings = prefs.getStringList("user_products") ?? [];
+
+    final userProductMaps =
+        userProductStrings
+            .map((json) => jsonDecode(json) as Map<String, dynamic>)
+            .where((product) => product['isApproved'] == true)
+            .toList();
+
+    setState(() {
+      products.clear();
+      products.addAll(userProductMaps);
+      filteredProducts = products;
+    });
+  }
+
   Future<void> loadProfileImage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -45,35 +115,43 @@ class _HomePageState extends State<HomePage> {
     final picker = ImagePicker();
     final XFile? pickedFile = await showModalBottomSheet<XFile?>(
       context: context,
-      builder: (_) => BottomSheet(
-        onClosing: () {},
-        builder: (_) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera),
-              title: const Text("Take Photo"),
-              onTap: () async {
-                final photo = await picker.pickImage(source: ImageSource.camera);
-                Navigator.pop(context, photo);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text("Choose from Gallery"),
-              onTap: () async {
-                final gallery = await picker.pickImage(source: ImageSource.gallery);
-                Navigator.pop(context, gallery);
-              },
-            ),
-          ],
-        ),
-      ),
+      builder:
+          (_) => BottomSheet(
+            onClosing: () {},
+            builder:
+                (_) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.camera),
+                      title: const Text("Take Photo"),
+                      onTap: () async {
+                        final photo = await picker.pickImage(
+                          source: ImageSource.camera,
+                        );
+                        Navigator.pop(context, photo);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.photo_library),
+                      title: const Text("Choose from Gallery"),
+                      onTap: () async {
+                        final gallery = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
+                        Navigator.pop(context, gallery);
+                      },
+                    ),
+                  ],
+                ),
+          ),
     );
 
     if (pickedFile != null) {
       final directory = await getApplicationDocumentsDirectory();
-      final savedImage = await File(pickedFile.path).copy('${directory.path}/${DateTime.now().millisecondsSinceEpoch}.png');
+      final savedImage = await File(
+        pickedFile.path,
+      ).copy('${directory.path}/${DateTime.now().millisecondsSinceEpoch}.png');
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('profile_image', savedImage.path);
@@ -88,7 +166,7 @@ class _HomePageState extends State<HomePage> {
     'assets/black-friday.jpg',
     'assets/cyber-monday-banner.jpg',
     'assets/cyber-monday.jpg',
-    'assets/black-friday-banner.jpg'
+    'assets/black-friday-banner.jpg',
   ];
 
   final List<Map<String, dynamic>> categories = [
@@ -126,7 +204,9 @@ class _HomePageState extends State<HomePage> {
     },
   ];
 
-  List<Map<String, dynamic>> products = [
+  final List<Map<String, dynamic>> products = [];
+
+  /*List<Map<String, dynamic>> products = [
     {
       'image':
           'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2Fiphone-16-pro-max-desert-titanium.webp1728298969978&w=1920&q=75',
@@ -163,29 +243,16 @@ class _HomePageState extends State<HomePage> {
       'name': 'Amazfit GTS 2 Smartwatch',
       'price': 190.00,
     },
-  ];
+  ];*/
 
   List<Map<String, dynamic>> blogItems = [
+    {'image': 'assets/black-friday.jpg', 'name': 'iPhone 13 Pro Max'},
     {
-      'image':
-      'assets/black-friday.jpg',
-      'name': 'iPhone 13 Pro Max',
-    },
-    {
-      'image':
-      'assets/cyber-monday-banner.jpg',
+      'image': 'assets/cyber-monday-banner.jpg',
       'name': 'OnePlus Nord CE4 Lite 5G',
     },
-    {
-      'image':
-      'assets/black-friday-banner.jpg',
-      'name': 'Ultima Atom 820',
-    },
-    {
-      'image':
-      'assets/cyber-monday.jpg',
-      'name': 'GoPro HERO 13 Black',
-    },
+    {'image': 'assets/black-friday-banner.jpg', 'name': 'Ultima Atom 820'},
+    {'image': 'assets/cyber-monday.jpg', 'name': 'GoPro HERO 13 Black'},
   ];
 
   Future<void> loadCartItems() async {
@@ -205,10 +272,11 @@ class _HomePageState extends State<HomePage> {
     /*cart.add(jsonEncode(product));
     await prefs.setStringList('cart', cart);*/
 
-    List<Map<String, dynamic>> cartList = cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
+    List<Map<String, dynamic>> cartList =
+        cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
 
     int index = cartList.indexWhere((item) => item['name'] == product['name']);
-    log("got index:"+index.toString());
+    log("got index:" + index.toString());
     if (index != -1) {
       cartList[index]['qty'] = (cartList[index]['qty'] ?? 1) + 1;
     } else {
@@ -222,21 +290,29 @@ class _HomePageState extends State<HomePage> {
 
     loadCartItems();
     // log(cart.toString());
-    ScaffoldMessenger.of(context,).showSnackBar(
-        const SnackBar(content: Text("Added item to cart."))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Added item to cart.")));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        automaticallyImplyLeading: true,
         //title: Text("Lukut Store", style: TextStyle(fontWeight: FontWeight.bold),),
         title: TextField(
           controller: _searchController,
           decoration: InputDecoration(
             hintText: "Search Products..",
             hintStyle: TextStyle(color: Colors.blue.shade500),
+            suffixIcon: GestureDetector(
+              onTap: () {
+                _startScanning();
+              },
+              child: Icon(Icons.remove_red_eye),
+            ),
           ),
           style: TextStyle(color: Colors.blue),
           onChanged: (value) {
@@ -290,6 +366,7 @@ class _HomePageState extends State<HomePage> {
                     ).then((_) => loadCartItems());
                   },
                 ),
+
                 if (cartItems.isNotEmpty)
                   Positioned(
                     right: 4,
@@ -332,9 +409,10 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: _imagePath != null
-                            ? FileImage(File(_imagePath!))
-                            : const AssetImage('assets/icon.jpg') ,
+                        backgroundImage:
+                            _imagePath != null
+                                ? FileImage(File(_imagePath!))
+                                : const AssetImage('assets/icon.jpg'),
                       ),
                       Positioned(
                         bottom: 0,
@@ -351,17 +429,20 @@ class _HomePageState extends State<HomePage> {
                             child: const Icon(Icons.camera_alt, size: 20),
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
               ),
               Column(
                 children: [
-                  Text("Lukut Store", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),),
+                  Text(
+                    "Lukut Store",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
                   Image(
                     image: AssetImage("assets/drawer-image.png"),
-                    width: MediaQuery.of(context).size.width/2,
+                    width: MediaQuery.of(context).size.width / 2,
                     height: 110,
                   ),
                 ],
@@ -529,8 +610,7 @@ class _HomePageState extends State<HomePage> {
                           context,
                           MaterialPageRoute(
                             builder:
-                                (context) =>
-                                ProductDetailPage(product: blog),
+                                (context) => ProductDetailPage(product: blog),
                           ),
                         ).then((_) => loadCartItems());
                       },
@@ -688,7 +768,7 @@ class RecentBlogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       child: Container(
-        width: MediaQuery.of(context).size.width/2.2, // Adjust width
+        width: MediaQuery.of(context).size.width / 2.2, // Adjust width
         margin: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -716,4 +796,324 @@ class RecentBlogCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class ScannerView extends StatefulWidget {
+  final Function(String) onBarcodeDetected;
+
+  const ScannerView({Key? key, required this.onBarcodeDetected})
+    : super(key: key);
+
+  @override
+  State<ScannerView> createState() => _ScannerViewState();
+}
+
+class _ScannerViewState extends State<ScannerView>
+    with SingleTickerProviderStateMixin {
+  final MobileScannerController controller = MobileScannerController();
+  bool _isProcessing = false;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Scanner
+            MobileScanner(
+              controller: controller,
+              onDetect: (capture) {
+                if (_isProcessing) return;
+                final List<Barcode> barcodes = capture.barcodes;
+                if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                  setState(() => _isProcessing = true);
+                  widget.onBarcodeDetected(barcodes.first.rawValue!);
+                }
+              },
+            ),
+
+            // Overlay
+            Container(
+              decoration: ShapeDecoration(
+                shape: ScannerOverlayShape(
+                  borderColor: Colors.white,
+                  borderRadius: 12,
+                  borderLength: 32,
+                  borderWidth: 3,
+                  cutOutSize: 250,
+                ),
+              ),
+            ),
+
+            // Animated Scanner Line
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: ScannerLinePainter(
+                      progress: _animation.value,
+                      color: Theme.of(context).primaryColor.withOpacity(0.5),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Top Bar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    // ValueListenableBuilder(
+                    //   valueListenable: controller.torchState,
+                    //   builder: (context, state, child) {
+                    //     return IconButton(
+                    //       icon: Icon(
+                    //         state == TorchState.off ? Icons.flash_off : Icons.flash_on,
+                    //         color: Colors.white,
+                    //       ),
+                    //       onPressed: () => controller.toggleTorch(),
+                    //     );
+                    //   },
+                    // ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Instructions
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Align barcode within frame',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Scanner will detect automatically',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class ScannerOverlayShape extends ShapeBorder {
+  final Color borderColor;
+  final double borderWidth;
+  final Color overlayColor;
+  final double borderRadius;
+  final double borderLength;
+  final double cutOutSize;
+
+  const ScannerOverlayShape({
+    this.borderColor = Colors.white,
+    this.borderWidth = 3.0,
+    this.overlayColor = const Color(0x80000000),
+    this.borderRadius = 12.0,
+    this.borderLength = 32.0,
+    this.cutOutSize = 250.0,
+  });
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) {
+    return Path()
+      ..fillType = PathFillType.evenOdd
+      ..addPath(getOuterPath(rect), Offset.zero);
+  }
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
+    Path _getLeftTopPath(Rect rect) {
+      return Path()
+        ..moveTo(rect.left, rect.bottom)
+        ..lineTo(rect.left, rect.top)
+        ..lineTo(rect.right, rect.top);
+    }
+
+    return _getLeftTopPath(rect);
+  }
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    final width = rect.width;
+    final height = rect.height;
+    final cutOutWidth = cutOutSize;
+    final cutOutHeight = cutOutSize;
+    final left = rect.left + (width - cutOutWidth) / 2;
+    final top = rect.top + (height - cutOutHeight) / 3;
+    final right = left + cutOutWidth;
+    final bottom = top + cutOutHeight;
+
+    final cutOutRect = Rect.fromLTRB(left, top, right, bottom);
+    final backgroundPaint = Paint()..color = overlayColor;
+    final borderPaint =
+        Paint()
+          ..color = borderColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = borderWidth;
+
+    final path =
+        Path()
+          ..fillType = PathFillType.evenOdd
+          ..addRect(rect)
+          ..addRRect(
+            RRect.fromRectAndRadius(cutOutRect, Radius.circular(borderRadius)),
+          );
+
+    canvas.drawPath(path, backgroundPaint);
+
+    // Draw corners
+    final borderOffset = borderWidth / 2;
+    final cornerStart = borderLength;
+
+    // Top left corner
+    canvas.drawLine(
+      Offset(left - borderOffset, top + cornerStart),
+      Offset(left - borderOffset, top - borderOffset),
+      borderPaint,
+    );
+    canvas.drawLine(
+      Offset(left - borderOffset, top - borderOffset),
+      Offset(left + cornerStart, top - borderOffset),
+      borderPaint,
+    );
+
+    // Top right corner
+    canvas.drawLine(
+      Offset(right - cornerStart, top - borderOffset),
+      Offset(right + borderOffset, top - borderOffset),
+      borderPaint,
+    );
+    canvas.drawLine(
+      Offset(right + borderOffset, top - borderOffset),
+      Offset(right + borderOffset, top + cornerStart),
+      borderPaint,
+    );
+
+    // Bottom right corner
+    canvas.drawLine(
+      Offset(right + borderOffset, bottom - cornerStart),
+      Offset(right + borderOffset, bottom + borderOffset),
+      borderPaint,
+    );
+    canvas.drawLine(
+      Offset(right + borderOffset, bottom + borderOffset),
+      Offset(right - cornerStart, bottom + borderOffset),
+      borderPaint,
+    );
+
+    // Bottom left corner
+    canvas.drawLine(
+      Offset(left + cornerStart, bottom + borderOffset),
+      Offset(left - borderOffset, bottom + borderOffset),
+      borderPaint,
+    );
+    canvas.drawLine(
+      Offset(left - borderOffset, bottom + borderOffset),
+      Offset(left - borderOffset, bottom - cornerStart),
+      borderPaint,
+    );
+  }
+
+  @override
+  ShapeBorder scale(double t) {
+    return ScannerOverlayShape(
+      borderColor: borderColor,
+      borderWidth: borderWidth * t,
+      overlayColor: overlayColor,
+    );
+  }
+}
+
+class ScannerLinePainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  ScannerLinePainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = color
+          ..strokeWidth = 3.0;
+
+    final scanLineY = size.height * 0.3 + (size.height * 0.4 * progress);
+    canvas.drawLine(
+      Offset(size.width * 0.2, scanLineY),
+      Offset(size.width * 0.8, scanLineY),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(ScannerLinePainter oldDelegate) => true;
 }

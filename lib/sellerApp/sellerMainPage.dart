@@ -1,19 +1,21 @@
-import 'dart:developer';
 import 'dart:ui';
 
-import '../ui/cartPage.dart';
-import '../ui/staticHomepage.dart';
+import 'package:buyerApp/sellerApp/ui/homePage.dart';
+import 'package:buyerApp/sellerApp/ui/addProductPage.dart';
+import 'package:buyerApp/ui/cartPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class Mainpage extends StatefulWidget {
-  Mainpage({super.key});
+import '../ui/staticHomepage.dart';
+
+class sellerMainPage extends StatefulWidget {
+  sellerMainPage({super.key});
 
   @override
-  _MainpageState createState() => _MainpageState();
+  _MainPageState createState() => _MainPageState();
 }
 
-class _MainpageState extends State<Mainpage> {
+class _MainPageState extends State<sellerMainPage> {
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
@@ -23,7 +25,13 @@ class _MainpageState extends State<Mainpage> {
   }
 
   List<Widget> _buildScreens() {
-    return [HomePage(), CartPage(), HomePage(), HomePage()];
+    return [
+      SellerHomePage(),
+      CartPage(),
+      AddProductPage(),
+      HomePage(),
+      HomePage(),
+    ];
   }
 
   void _onTabTapped(int index) {
@@ -64,8 +72,8 @@ class _MainpageState extends State<Mainpage> {
               label: "Cart",
             ),
             const BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: "Settings",
+              icon: Icon(Icons.add),
+              label: "Add Product",
             ),
 
             const BottomNavigationBarItem(
@@ -74,13 +82,13 @@ class _MainpageState extends State<Mainpage> {
             ),
 
             const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              label: "Test",
+              icon: Icon(Icons.home),
+              label: "Home",
             ),
           ],
           selectedItemColor: Colors.red,
           unselectedItemColor: Colors.grey,
-          type: BottomNavigationBarType.shifting,
+          type: BottomNavigationBarType.fixed,
         ),
       ),
     );

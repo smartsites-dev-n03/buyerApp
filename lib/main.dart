@@ -1,3 +1,6 @@
+import 'package:buyerApp/mainPage.dart';
+import 'package:buyerApp/sellerApp/sellerMainPage.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:khalti_flutter/khalti_flutter.dart';
 import 'package:buyerApp/enterOtpPage.dart';
@@ -6,7 +9,9 @@ import 'package:buyerApp/ui/staticHomepage.dart';
 import 'loginPage.dart';
 import 'forgotPasswordPage.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -21,18 +26,13 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'Flutter Demo',
-          theme: ThemeData(
-            primarySwatch: Colors.red,
-          ),
-          home:  LoginPage(),
+          theme: ThemeData(primarySwatch: Colors.red),
+          //home: sellerMainPage(),
+          home: LoginPage(),
+          //home: Mainpage(),
           navigatorKey: e,
-          supportedLocales: const [
-            Locale('en', 'US'),
-            Locale('ne', 'NP'),
-          ],
-          localizationsDelegates: const [
-            KhaltiLocalizations.delegate,
-          ],
+          supportedLocales: const [Locale('en', 'US'), Locale('ne', 'NP')],
+          localizationsDelegates: const [KhaltiLocalizations.delegate],
         );
       },
     );

@@ -14,6 +14,7 @@ class _CartPageState extends State<CartPage> {
   List<Map<String, dynamic>> cartItems = [];
   double totalPrice = 0.0;
 
+  //Dict data type - Map
   Map<int, bool> checkedItems = {};
 
   @override
@@ -27,7 +28,8 @@ class _CartPageState extends State<CartPage> {
     List<String> cart = prefs.getStringList('cart') ?? [];
 
     setState(() {
-      cartItems = cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
+      cartItems =
+          cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
       for (int i = 0; i < cartItems.length; i++) {
         checkedItems[i] = checkedItems[i] ?? false;
       }
@@ -62,7 +64,8 @@ class _CartPageState extends State<CartPage> {
       // Rebuild checked items map
       Map<int, bool> newCheckedItems = {};
       for (int i = 0; i < cartItems.length; i++) {
-        newCheckedItems[i] = i < index ? checkedItems[i]! : checkedItems[i + 1] ?? false;
+        newCheckedItems[i] =
+            i < index ? checkedItems[i]! : checkedItems[i + 1] ?? false;
       }
       checkedItems = newCheckedItems;
       calculateTotalPrice();
@@ -108,39 +111,43 @@ class _CartPageState extends State<CartPage> {
 
     if (selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one item for checkout')),
+        const SnackBar(
+          content: Text('Please select at least one item for checkout'),
+        ),
       );
       return;
     }
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Checkout'),
-        content: const Text('Proceed to Checkout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Checkout'),
+            content: const Text('Proceed to Checkout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => CheckoutPage(
+                            price: totalPrice,
+                            selectedItems: selectedItems,
+                            onCheckoutSuccess: removeCheckedItems,
+                          ),
+                    ),
+                  );
+                },
+                child: const Text('Proceed'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CheckoutPage(
-                    price: totalPrice,
-                    selectedItems: selectedItems,
-                    onCheckoutSuccess: removeCheckedItems,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Proceed'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -150,81 +157,84 @@ class _CartPageState extends State<CartPage> {
       appBar: AppBar(
         title: const Text("Cart Page"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: clearCart,
-          ),
+          IconButton(icon: const Icon(Icons.delete), onPressed: clearCart),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: cartItems.isEmpty
-                ? const Center(child: Text('Your cart is empty.'))
-                : ListView.builder(
-              itemCount: cartItems.length,
-              itemBuilder: (context, index) {
-                final item = cartItems[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value: checkedItems[index] ?? false,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            log(index.toString());
-                            checkedItems[index] = value ?? false;
-                            calculateTotalPrice();
-                          });
-                        },
-                      ),
-                      // Item details
-                      Expanded(
-                        child: ListTile(
-                          leading: Image.network(
-                            item['image'],
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
+            child:
+                cartItems.isEmpty
+                    ? const Center(child: Text('Your cart is empty.'))
+                    : ListView.builder(
+                      itemCount: cartItems.length,
+                      itemBuilder: (context, index) {
+                        final item = cartItems[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          title: Text(item['name']),
-                          subtitle: Text('Rs.${item['price']} x ${item['qty']}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Row(
                             children: [
-                              IconButton(
-                                icon: Icon(Icons.remove),
-                                onPressed: () async {
-                                  if (item['qty'] > 1) {
-                                    setState(() {
-                                      item['qty'] -= 1;
-                                    });
-                                  } else {
-                                    removeCartItem(index);
-                                  }
-                                  await saveCartItems();
+                              Checkbox(
+                                value: checkedItems[index] ?? false,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    log(index.toString());
+                                    checkedItems[index] = value ?? false;
+                                    calculateTotalPrice();
+                                  });
                                 },
                               ),
-                              Text('${item['qty']}'),
-                              IconButton(
-                                icon: Icon(Icons.add),
-                                onPressed: () async {
-                                  setState(() {
-                                    item['qty'] += 1;
-                                  });
-                                  await saveCartItems();
-                                },
+                              // Item details
+                              Expanded(
+                                child: ListTile(
+                                  leading: Image.network(
+                                    item['image'],
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  title: Text(item['name']),
+                                  subtitle: Text(
+                                    'Rs.${item['price']} x ${item['qty']}',
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.remove),
+                                        onPressed: () async {
+                                          if (item['qty'] > 1) {
+                                            setState(() {
+                                              item['qty'] -= 1;
+                                            });
+                                          } else {
+                                            removeCartItem(index);
+                                          }
+                                          await saveCartItems();
+                                        },
+                                      ),
+                                      Text('${item['qty']}'),
+                                      IconButton(
+                                        icon: Icon(Icons.add),
+                                        onPressed: () async {
+                                          setState(() {
+                                            item['qty'] += 1;
+                                          });
+                                          await saveCartItems();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        );
+                      },
+                    ),
           ),
           if (cartItems.isNotEmpty)
             Container(
@@ -245,7 +255,10 @@ class _CartPageState extends State<CartPage> {
                 children: [
                   Text(
                     'Total: Rs.${totalPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: checkout,
