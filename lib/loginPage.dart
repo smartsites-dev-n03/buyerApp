@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_toggle_tab/flutter_toggle_tab.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:buyerApp/forgotPasswordPage.dart';
 import 'package:buyerApp/signUpPage.dart';
@@ -30,10 +33,32 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   int _tabTextIndexSelected = 0;
 
+  final LocalAuthentication auth = LocalAuthentication();
+  bool _canCheckBiometrics = false;
+  List<BiometricType> _availableBiometrics = [];
+
   List<DataTab> get _listTextTabToggle => [
     DataTab(title: "Buyer"),
     DataTab(title: "Seller"),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    try {
+      _canCheckBiometrics = await auth.canCheckBiometrics;
+      _availableBiometrics = await auth.getAvailableBiometrics();
+      log("Available Biometrics: $_availableBiometrics");
+    } on PlatformException catch (e) {
+      debugPrint("Biometric error: $e");
+    }
+    setState(() {});
+  }
 
   void _login() {
     String email = _emailController.text.trim();
@@ -106,6 +131,7 @@ class _LoginPageState extends State<LoginPage> {
       if (_isChecked == true) {
         userPefs.setString('token', jsonDecode(response.body)['access_token']);
       }
+
       /*Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
@@ -130,11 +156,11 @@ class _LoginPageState extends State<LoginPage> {
     return response;
   }
 
-  @override
+  /*@override
   void initState() {
     // TODO: implement initState
     super.initState();
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +288,9 @@ class _LoginPageState extends State<LoginPage> {
                             prefixIcon: Icon(Icons.email),
                           ),
                         ),
+
                         const SizedBox(height: 20),
+
                         TextFormField(
                           obscureText: _obsecure,
                           controller: _passwordController,
@@ -335,7 +363,8 @@ class _LoginPageState extends State<LoginPage> {
                           child: Row(
                             children: [
                               Checkbox(
-                                activeColor: Color(0xff00C8E8),
+                                activeColor: Color(0xff2196f3),
+                                checkColor: Color(0xffffffff),
                                 value: _isChecked,
                                 onChanged: (bool? value) {
                                   // log(value.toString());
@@ -366,28 +395,57 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 10),
 
-                        Center(
-                          child: SizedBox(
-                            height: 50,
-                            width: 300,
-                            child: ElevatedButton(
-                              onPressed: _login,
-                              style: ElevatedButton.styleFrom(
-                                elevation: 0,
-                                backgroundColor: Colors.blue,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
-                                ),
-                              ),
-                              child: const Text(
-                                "SIGN IN",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
+                        Row(
+                          spacing: 10,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: SizedBox(
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _login,
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: Colors.blue,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15.0),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "SIGN IN",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+
+                            Expanded(
+                              flex: 1,
+                              child: SizedBox(
+                                height: 50,
+                                width: 80,
+                                child: ElevatedButton(
+                                  onPressed: _authenticateWithBiometrics,
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: Colors.blue,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15.0),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.fingerprint,
+                                    color: Colors.white,
+                                    size: 35,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
                         const SizedBox(height: 20),
@@ -498,5 +556,37 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'Please authenticate to login',
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
+      );
+      if (didAuthenticate) {
+        log("logged in");
+        setState(() {
+          _isLoading = true;
+        });
+        postLogin();
+      }
+    } on PlatformException catch (e) {
+      if (e.code == 'LockedOut') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Too many failed attempts. Please try again in 30 seconds.",
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        debugPrint(e.toString());
+      }
+    }
   }
 }

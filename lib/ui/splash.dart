@@ -6,22 +6,30 @@ import 'package:buyerApp/ui/staticHomepage.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
+
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
 class _SplashPageState extends State<SplashPage> {
   String token = "";
-  void checkAccessToken() async{
+
+  void checkAccessToken() async {
     SharedPreferences userPefs = await SharedPreferences.getInstance();
     setState(() {
-      token = userPefs.getString("token")??"";
+      token = userPefs.getString("token") ?? "";
     });
 
-    if(token.isEmpty){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginPage()));
-    }else{
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>HomePage()));
+    if (token.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
     }
   }
 
@@ -40,12 +48,7 @@ class _SplashPageState extends State<SplashPage> {
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.blue,
-        body: Center(
-          child: SpinKitDancingSquare(
-            color: Colors.white,
-            size: 200,
-          ),
-        ),
+        body: Center(child: SpinKitPianoWave(color: Colors.white, size: 200)),
       ),
     );
   }

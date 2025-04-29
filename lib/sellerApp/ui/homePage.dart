@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../ui/splash.dart';
 import 'addProductPage.dart';
@@ -16,11 +19,30 @@ class SellerHomePage extends StatefulWidget {
 
 class _AddProductPageState extends State<SellerHomePage> {
   List<Map<String, dynamic>> products = [];
+  List<String> videoIds = [];
 
   @override
   void initState() {
     super.initState();
     loadProducts();
+    fetchYtbVideos();
+  }
+
+  Future<void> fetchYtbVideos() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('youtube_videos').get();
+    List<String> ids = [];
+    for (var doc in snapshot.docs) {
+      final List<dynamic> videoList = doc['videoId'];
+      ids.addAll(videoList.map((e) => e.toString()));
+    }
+
+    setState(() {
+      videoIds = ids;
+      log(videoIds.toString());
+
+      if (videoIds.isNotEmpty) {}
+    });
   }
 
   Future<void> loadProducts() async {
@@ -58,6 +80,12 @@ class _AddProductPageState extends State<SellerHomePage> {
       products.map((e) => jsonEncode(e)).toList(),
     );
   }
+
+  final _controller = YoutubePlayerController.fromVideoId(
+    videoId: 'sivn5BX3Lic',
+    autoPlay: false,
+    params: const YoutubePlayerParams(showFullscreenButton: true),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +177,9 @@ class _AddProductPageState extends State<SellerHomePage> {
           ),
         ),
       ),
-      body:
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
           products.isEmpty
               ? const Center(child: Text("No products added yet."))
               : ListView.builder(
@@ -242,6 +272,38 @@ class _AddProductPageState extends State<SellerHomePage> {
                   );
                 },
               ),
+
+          YoutubePlayer(controller: _controller, aspectRatio: 16 / 9),
+          SizedBox(height: 10),
+          Expanded(
+            child: GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              itemCount: videoIds.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    _controller.loadVideoById(videoId: videoIds[index]);
+                  },
+                  child: Container(
+                    child: Image.network(
+                      "https://img.youtube.com/vi/${videoIds[index]}/hqdefault.jpg",
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          SizedBox(height: 5),
+          Text("Product using String"),
+        ],
+      ),
     );
   }
 }
