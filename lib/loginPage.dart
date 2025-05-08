@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -24,14 +25,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  TextEditingController _emailController = TextEditingController();
+  TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
 
   bool _obsecure = true;
   bool _isChecked = false;
   bool _isLoading = false;
-  int _tabTextIndexSelected = 0;
+  int _tabTextIndexSelected = 1;
 
   final LocalAuthentication auth = LocalAuthentication();
   bool _canCheckBiometrics = false;
@@ -45,6 +46,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+
+    _emailController = TextEditingController(text: "ss.dev.no3@gmail.com");
+    _passwordController = TextEditingController(text: "Flutter@1");
 
     _checkBiometrics();
   }
@@ -96,55 +100,43 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future postLogin() async {
-    setState(() {
+    final FirebaseAuth _auth = FirebaseAuth.instance;
+    /*setState(() {
       _isLoading = true;
-    });
-
+    });*/
     SharedPreferences userPefs = await SharedPreferences.getInstance();
-    final response = await http.post(
-      Uri.parse('https://api.sarbamfoods.com/accounts/login/'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: json.encode({
-        "email": _emailController.text.toString(),
-        "password": _passwordController.text.toString(),
-      }),
-    );
 
-    if (response.statusCode == 200) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      _tabTextIndexSelected == 1
-          ? Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => sellerMainPage()),
-          )
-          : Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => Mainpage()),
+    try {
+      final UserCredential userCredential = await _auth
+          .signInWithEmailAndPassword(
+            email: _emailController.text,
+            password: _passwordController.text,
           );
 
-      if (_isChecked == true) {
-        userPefs.setString('token', jsonDecode(response.body)['access_token']);
-      }
+      final User? user = userCredential.user;
+      log("User returned ");
 
-      /*Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => HomePage()),
-      );*/
-    } else {
+      if (user != null) {
+        setState(() {
+          _isLoading = false;
+        });
+        _tabTextIndexSelected == 1
+            ? Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => sellerMainPage()),
+            )
+            : Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => Mainpage()),
+            );
+      }
+    } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;
       });
-      _emailController.clear();
-      _passwordController.clear();
 
       Fluttertoast.showToast(
-        msg: "Invalid Logins!",
+        msg: "Invalid User!",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
         timeInSecForIosWeb: 1,
@@ -152,8 +144,24 @@ class _LoginPageState extends State<LoginPage> {
         textColor: Colors.white,
         fontSize: 16.0,
       );
+      // _emailController.clear();
+      // _passwordController.clear();
+
+      if (e.code == 'user-not-found') {
+        print('No user found for that email.');
+      } else if (e.code == 'wrong-password') {
+        Fluttertoast.showToast(
+          msg: "Wrong password!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        print('Wrong password provided for that user.');
+      }
     }
-    return response;
   }
 
   /*@override
@@ -171,12 +179,7 @@ class _LoginPageState extends State<LoginPage> {
           child: SingleChildScrollView(
             child:
                 _isLoading == true
-                    ? Center(
-                      child: SpinKitDancingSquare(
-                        color: Colors.blue,
-                        size: 200,
-                      ),
-                    )
+                    ? Center(child: SpinKitWave(color: Colors.blue, size: 100))
                     : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -367,7 +370,6 @@ class _LoginPageState extends State<LoginPage> {
                                 checkColor: Color(0xffffffff),
                                 value: _isChecked,
                                 onChanged: (bool? value) {
-                                  // log(value.toString());
                                   setState(() {
                                     _isChecked = value!;
                                   });

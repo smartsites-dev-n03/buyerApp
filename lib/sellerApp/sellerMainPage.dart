@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:buyerApp/sellerApp/ui/createProduct.dart';
 import 'package:buyerApp/sellerApp/ui/homePage.dart';
 import 'package:buyerApp/sellerApp/ui/addProductPage.dart';
 import 'package:buyerApp/ui/cartPage.dart';
@@ -29,7 +30,7 @@ class _MainPageState extends State<sellerMainPage> {
       SellerHomePage(),
       CartPage(),
       AddProductPage(),
-      HomePage(),
+      Createproduct(),
       HomePage(),
     ];
   }

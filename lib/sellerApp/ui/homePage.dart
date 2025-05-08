@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
+import '../../ui/productDetailPage.dart';
+import '../../ui/profilePage.dart';
 import '../../ui/splash.dart';
 import 'addProductPage.dart';
 import 'editProductPage.dart';
@@ -39,7 +41,7 @@ class _AddProductPageState extends State<SellerHomePage> {
 
     setState(() {
       videoIds = ids;
-      log(videoIds.toString());
+      //log(videoIds.toString());
 
       if (videoIds.isNotEmpty) {}
     });
@@ -122,10 +124,28 @@ class _AddProductPageState extends State<SellerHomePage> {
                     "Lukut Store",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
-                  Image(
-                    image: AssetImage("assets/drawer-image.png"),
-                    width: MediaQuery.of(context).size.width / 2,
-                    height: 110,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfilePage()),
+                      );
+                    },
+                    child: Image(
+                      image: AssetImage("assets/drawer-image.png"),
+                      width: MediaQuery.of(context).size.width / 2,
+                      height: 110,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfilePage()),
+                      );
+                    },
+                    icon: const Icon(Icons.man),
+                    label: const Text("My Profile"),
                   ),
                 ],
               ),
@@ -160,9 +180,54 @@ class _AddProductPageState extends State<SellerHomePage> {
                   Navigator.pop(context);
                 },
               ),
+              const Divider(),
               ListTile(
-                title: const Text('Logout'),
-                leading: Icon(Icons.logout),
+                leading: const Icon(Icons.shopping_bag),
+                title: const Text("My Orders"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  // Navigate to Orders
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.favorite_border),
+                title: const Text("Wishlist"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  // Navigate to Wishlist
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_on),
+                title: const Text("My Addresses"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  // Navigate to Addresses
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text("Settings"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  // Navigate to Settings
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text("Help & Support"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  // Navigate to Help
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text(
+                  "Logout",
+                  style: TextStyle(color: Colors.red),
+                ),
+
                 onTap: () async {
                   SharedPreferences logoutPref =
                       await SharedPreferences.getInstance();
@@ -301,7 +366,110 @@ class _AddProductPageState extends State<SellerHomePage> {
           ),
 
           SizedBox(height: 5),
-          Text("Product using String"),
+
+          Text(
+            "Featured Products",
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 20),
+          Container(
+            height: 400,
+            width: 400,
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance.collection('products').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Something went wrong'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final docs = snapshot.data!.docs;
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(10),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => ProductDetailPage(product: data),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            /*Expanded(
+                                  child:
+                                      data['image'] != null &&
+                                              data['image'] != ""
+                                          ? Image.memory(
+                                            base64Decode(data['image']),
+                                            fit: BoxFit.cover,
+                                          )
+                                          : const Icon(Icons.image, size: 80),
+                                ),*/
+                            Expanded(
+                              child:
+                                  data['image'] != null && data['image'] != ""
+                                      ? Image(
+                                        image: AssetImage(
+                                          "assets/" + data['image'],
+                                        ),
+                                        width:
+                                            MediaQuery.of(context).size.width /
+                                            2,
+                                        height: 110,
+                                      )
+                                      : const Icon(Icons.image, size: 80),
+                            ),
+
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    data['name'] ?? "No Name",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text("Price: Rs .${data['price'] ?? 'N/A'}"),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          SizedBox(height: 20),
         ],
       ),
     );

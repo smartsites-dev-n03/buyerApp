@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'package:buyerApp/ui/profilePage.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -27,6 +29,8 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> cartItems = [];
   List<Map<String, dynamic>> filteredProducts = [];
 
+  List<String> carouselItems = [];
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +38,7 @@ class _HomePageState extends State<HomePage> {
     loadProfileImage();
     loadUserProducts();
     filteredProducts = products;
+    fetchCarouselItems();
   }
 
   String? _imagePath;
@@ -162,6 +167,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> fetchCarouselItems() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('homepage_carousel').get();
+    List<String> ids = [];
+    for (var doc in snapshot.docs) {
+      final List<dynamic> imageUrl = doc['image_url'];
+      ids.addAll(imageUrl.map((e) => e.toString()));
+    }
+    setState(() {
+      carouselItems = ids;
+      log(carouselItems.toString());
+    });
+  }
+
   final List<String> banners = [
     'assets/black-friday.jpg',
     'assets/cyber-monday-banner.jpg',
@@ -205,45 +224,6 @@ class _HomePageState extends State<HomePage> {
   ];
 
   final List<Map<String, dynamic>> products = [];
-
-  /*List<Map<String, dynamic>> products = [
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2Fiphone-16-pro-max-desert-titanium.webp1728298969978&w=1920&q=75',
-      'name': 'iPhone 13 Pro Max',
-      'price': 2070.00,
-    },
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2FOnePlus-Nord-CE4-Lite-5G-price-in-nepal-2.webp1726996501943&w=1920&q=75',
-      'name': 'OnePlus Nord CE4 Lite 5G',
-      'price': 299.99,
-    },
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2FUltima-Atom-820-Grey.webp&w=1920&q=75',
-      'name': 'Ultima Atom 820',
-      'price': 18.99,
-    },
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2Fgo-pro-hero-13-black-2.png1739871585852&w=1920&q=75',
-      'name': 'GoPro HERO 13 Black',
-      'price': 664.99,
-    },
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2FSamsung%2520Galaxy%2520Tab%2520S9%2520FE%2520Silver%25201.webp&w=1920&q=75',
-      'name': 'Samsung Galaxy Tab S9 FE',
-      'price': 809.99,
-    },
-    {
-      'image':
-          'https://hukut.com/_next/image?url=https%3A%2F%2Fcdn.hukut.com%2FAmazfit%2520GTS%25202%2520Desert%2520Gold.webp&w=1920&q=75',
-      'name': 'Amazfit GTS 2 Smartwatch',
-      'price': 190.00,
-    },
-  ];*/
 
   List<Map<String, dynamic>> blogItems = [
     {'image': 'assets/black-friday.jpg', 'name': 'iPhone 13 Pro Max'},
@@ -316,18 +296,6 @@ class _HomePageState extends State<HomePage> {
           ),
           style: TextStyle(color: Colors.blue),
           onChanged: (value) {
-            /*setState(() {
-             filteredProducts = products
-                 .where((item) => item['name']
-                 .contains(value.toLowerCase()
-                 .toString())).toList();
-            });*/
-            /*setState(() {
-              filteredProducts = products
-                  .where((item) => item['price'].toString()
-                  .contains(value)
-              ).toList();
-            });*/
             setState(() {
               filteredProducts =
                   products
@@ -338,17 +306,6 @@ class _HomePageState extends State<HomePage> {
                                 .contains(value.toLowerCase()),
                       )
                       .toList();
-
-              /*filteredProducts = products.where((product) {
-                final nameMatch = product['name']
-                    .toLowerCase()
-                    .contains(value.toLowerCase());
-
-                final priceMatch = double.tryParse(value) != null &&
-                    product['price'].toString().contains(value);
-
-                return nameMatch || priceMatch;
-              }).toList();*/
             });
           },
         ),
@@ -412,7 +369,7 @@ class _HomePageState extends State<HomePage> {
                         backgroundImage:
                             _imagePath != null
                                 ? FileImage(File(_imagePath!))
-                                : const AssetImage('assets/icon.jpg'),
+                                : const AssetImage('assets/drawer-image.jpg'),
                       ),
                       Positioned(
                         bottom: 0,
@@ -440,10 +397,18 @@ class _HomePageState extends State<HomePage> {
                     "Lukut Store",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
-                  Image(
-                    image: AssetImage("assets/drawer-image.png"),
-                    width: MediaQuery.of(context).size.width / 2,
-                    height: 110,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfilePage()),
+                      );
+                    },
+                    child: Image(
+                      image: AssetImage("assets/drawer-image.png"),
+                      width: MediaQuery.of(context).size.width / 2,
+                      height: 110,
+                    ),
                   ),
                 ],
               ),
@@ -523,6 +488,39 @@ class _HomePageState extends State<HomePage> {
                       );
                     }).toList(),
               ),
+              Divider(endIndent: 20, indent: 20),
+
+              Text(
+                "Firebase Carousel",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              CarouselSlider(
+                options: CarouselOptions(
+                  height: 130,
+                  enlargeCenterPage: false,
+                  autoPlay: true,
+                  aspectRatio: 16 / 9,
+                  viewportFraction: 0.8,
+                ),
+                items:
+                    carouselItems.map((imageUrl) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          image: DecorationImage(
+                            image: AssetImage(imageUrl),
+                            //image: NetworkImage(imageUrl),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              ),
               SizedBox(height: 20),
               Divider(endIndent: 20, indent: 20),
 
@@ -549,6 +547,120 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               SizedBox(height: 20),
+              Text(
+                "Featured Products",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                height: 500,
+                width: 400,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('products')
+                          .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Something went wrong'));
+                    }
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final docs = snapshot.data!.docs;
+
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(10),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 0.75,
+                          ),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data() as Map<String, dynamic>;
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        ProductDetailPage(product: data),
+                              ),
+                            );
+                          },
+                          child: Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                /*Expanded(
+                                  child:
+                                      data['image'] != null &&
+                                              data['image'] != ""
+                                          ? Image.memory(
+                                            base64Decode(data['image']),
+                                            fit: BoxFit.cover,
+                                          )
+                                          : const Icon(Icons.image, size: 80),
+                                ),*/
+                                Expanded(
+                                  child:
+                                      data['image'] != null &&
+                                              data['image'] != ""
+                                          ? Image(
+                                            image: AssetImage(
+                                              "assets/" + data['image'],
+                                            ),
+                                            width:
+                                                MediaQuery.of(
+                                                  context,
+                                                ).size.width /
+                                                2,
+                                            height: 110,
+                                          )
+                                          : const Icon(Icons.image, size: 80),
+                                ),
+
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        data['name'] ?? "No Name",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Price: Rs .${data['price'] ?? 'N/A'}",
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
 
               Text(
                 "Featured Products",

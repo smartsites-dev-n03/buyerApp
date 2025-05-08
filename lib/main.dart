@@ -1,5 +1,6 @@
 import 'package:buyerApp/mainPage.dart';
 import 'package:buyerApp/sellerApp/sellerMainPage.dart';
+import 'package:buyerApp/signUpPage.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:khalti_flutter/khalti_flutter.dart';
@@ -27,9 +28,10 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'Flutter Demo',
           theme: ThemeData(primarySwatch: Colors.red),
-          home: sellerMainPage(),
-          //home: LoginPage(),
+          //home: sellerMainPage(),
+          //home: SignUpPage(),
           //home: Mainpage(),
+          home: LoginPage(),
           navigatorKey: e,
           supportedLocales: const [Locale('en', 'US'), Locale('ne', 'NP')],
           localizationsDelegates: const [KhaltiLocalizations.delegate],
