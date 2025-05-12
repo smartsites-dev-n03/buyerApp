@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:buyerApp/ui/trackOrder.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,6 +26,14 @@ class _ProfilePageState extends State<ProfilePage> {
         .collection('users')
         .doc(uid)
         .collection('cart')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getUserOrders(String uid) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('orders')
         .snapshots();
   }
 
@@ -160,7 +169,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     final cartItems =
                         cartSnapshot.data!.docs
-                            .where((doc) => (doc.data() as Map)['isCheckout'])
+                            .where((doc) => (doc.data() as Map)['name'] != "")
                             .toList();
 
                     if (cartItems.isEmpty) {
@@ -236,6 +245,97 @@ class _ProfilePageState extends State<ProfilePage> {
                                               : Colors.red,
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+
+                Divider(),
+
+                const Text(
+                  "Recent Orders",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                StreamBuilder(
+                  stream: getUserOrders(user.uid),
+                  builder: (context, orderSnapshot) {
+                    if (!orderSnapshot.hasData)
+                      return const CircularProgressIndicator();
+
+                    final orderItems =
+                        orderSnapshot.data!.docs
+                            .where((doc) => (doc.data() as Map)['status'] != '')
+                            .toList();
+
+                    if (orderItems.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text("No recent orders."),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: orderItems.length,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final item = orderItems[index];
+                        final itemData = item.data() as Map<String, dynamic>;
+
+                        log(itemData['items'].toString());
+
+                        // Get the first item in the 'items' list
+                        final List<dynamic> itemsList = itemData['items'];
+                        final firstItem =
+                            itemsList.isNotEmpty ? itemsList[0] : null;
+
+                        return GestureDetector(
+                          onTap: () {},
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading:
+                                  firstItem != null &&
+                                          firstItem['image'] != null &&
+                                          firstItem['image'] != ""
+                                      ? Image.asset(
+                                        "assets/${firstItem['image']}",
+                                        height: 80,
+                                      )
+                                      : const Icon(Icons.image, size: 60),
+
+                              title: Text(firstItem['name']),
+                              trailing: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  /*Text(
+                                    itemData['isCheckout']
+                                        ? "Checked Out"
+                                        : "In Cart",
+                                    style: TextStyle(
+                                      color:
+                                          itemData['isCheckout']
+                                              ? Colors.blue
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                  Text(
+                                    itemData['isDelivered']
+                                        ? "Delivered"
+                                        : "Pending",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          itemData['isDelivered']
+                                              ? Colors.green
+                                              : Colors.red,
+                                    ),
+                                  ),*/
                                 ],
                               ),
                             ),

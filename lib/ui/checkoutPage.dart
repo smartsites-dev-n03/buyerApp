@@ -357,7 +357,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               'currentAddress': {'lat': 27.7000, 'lng': 85.3117},
             });
         for (int i = 0; i < widget.selectedItems.length; i++) {
-          String itemId = widget.selectedItems[i]['id'];
+          String itemId = widget.selectedItems[i]['cartId'];
           FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -382,7 +382,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 },
               });
 
-          // await updateCart(itemId);
+          await updateCart(itemId);
         }
       } catch (e) {
         print('Error saving order to Firestore: $e');
@@ -398,7 +398,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           .doc(uid)
           .collection('cart')
           .doc(itemName)
-          .update({'isCheckout': true});
+          .delete();
     }
   }
 
@@ -695,11 +695,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               return DataRow(
                                 cells: [
                                   DataCell(
-                                    Image.memory(
-                                      base64Decode(item['image']),
-                                      width: 50,
-                                      height: 50,
-                                    ),
+                                    item['image'] != null && item['image'] != ""
+                                        ? Image(
+                                          image: AssetImage(
+                                            "assets/" + item['image'],
+                                          ),
+
+                                          height: 80,
+                                        )
+                                        : const Icon(Icons.image, size: 80),
                                   ),
                                   DataCell(Text(item['name'])),
                                   DataCell(Text('${qty}')),

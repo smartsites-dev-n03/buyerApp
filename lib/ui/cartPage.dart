@@ -33,8 +33,8 @@ class _CartPageState extends State<CartPage> {
           .doc(uid)
           .collection('cart');
 
-      final querySnapshot =
-          await cartCollection.where('isCheckout', isEqualTo: false).get();
+      final querySnapshot = await cartCollection.get();
+      //await cartCollection.where('isCheckout', isEqualTo: false).get();
 
       for (var doc in querySnapshot.docs) {
         await doc.reference.delete();

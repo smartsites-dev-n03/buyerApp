@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:buyerApp/ui/staticHomepage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -19,13 +20,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  String cartId = "";
+
   List<Map<String, dynamic>> cartItems = [];
   int totalCartItems = 0;
 
   @override
   void initState() {
     super.initState();
-    getCartItems();
     loadCartItems();
   }
 
@@ -37,14 +39,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       );
       return;
     }
+    cartId = DateTime.now().millisecondsSinceEpoch.toString();
 
     final cartRef = _firestore
         .collection('users')
         .doc(user.uid)
         .collection('cart')
-        .doc(product['name']);
+        .doc(product['id']);
 
     final existing = await cartRef.get();
+
+    log(existing.data().toString());
 
     if (existing.exists) {
       final currentQty = existing.data()?['qty'] ?? 1;
@@ -57,36 +62,45 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         'qty': 1,
         'isCheckout': false,
         'isDelivered': false,
+        'cartId': cartId,
+        'id': product['id'],
       });
     }
 
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Added to cart!')));
-  }
 
-  Future<List<Map<String, dynamic>>> getCartItems() async {
-    try {
-      final user = _auth.currentUser;
-      final cartSnapshot =
-          await _firestore
-              .collection('users')
-              .doc(user?.uid)
-              .collection('cart')
-              .where('isCheckout', isEqualTo: false)
-              .get();
-      return cartSnapshot.docs.map((doc) => doc.data()).toList();
-    } catch (e) {
-      print('Error fetching cart items: $e');
-      return [];
-    }
+    setState(() {
+      loadCartItems();
+    });
   }
 
   Future<void> loadCartItems() async {
-    setState(() async {
-      List<Map<String, dynamic>> items = await getCartItems();
-      cartItems = items;
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    final cartSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('cart')
+            .get();
+
+    // Extracting the document data
+    List<Map<String, dynamic>> cartProducts =
+        cartSnapshot.docs.map((doc) {
+          return doc.data();
+        }).toList();
+
+    setState(() {
+      cartItems = cartProducts;
     });
+
+    log(cartItems.toString());
   }
 
   @override
@@ -169,14 +183,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
+                            /*Text(
                               "\$" + product['price'],
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green[700],
                               ),
-                            ),
+                            ),*/
                           ],
                         ),
 
@@ -264,7 +278,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                               MaterialPageRoute(
                                 builder: (context) => CartPage(),
                               ),
-                            ).then((_) => loadCartItems());
+                            );
                           },
                           color: Colors.black,
                         ),

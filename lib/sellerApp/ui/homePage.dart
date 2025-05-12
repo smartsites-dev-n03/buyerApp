@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'package:buyerApp/sellerApp/ui/createProduct.dart';
+import 'package:buyerApp/ui/galleryPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../ui/productDetailPage.dart';
+import '../../ui/productListPage.dart';
 import '../../ui/profilePage.dart';
 import '../../ui/splash.dart';
 import 'addProductPage.dart';
@@ -23,6 +27,8 @@ class _AddProductPageState extends State<SellerHomePage> {
   List<Map<String, dynamic>> products = [];
   List<String> videoIds = [];
 
+  final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
   @override
   void initState() {
     super.initState();
@@ -33,30 +39,21 @@ class _AddProductPageState extends State<SellerHomePage> {
   Future<void> fetchYtbVideos() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('youtube_videos').get();
+
     List<String> ids = [];
     for (var doc in snapshot.docs) {
       final List<dynamic> videoList = doc['videoId'];
       ids.addAll(videoList.map((e) => e.toString()));
     }
-
-    setState(() {
-      videoIds = ids;
-      //log(videoIds.toString());
-
-      if (videoIds.isNotEmpty) {}
-    });
   }
 
   Future<void> loadProducts() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> productStrings = prefs.getStringList("user_products") ?? [];
+    final allProducts = FirebaseFirestore.instance.collection('products').get();
 
     setState(() {
-      products =
-          productStrings
-              .map((e) => jsonDecode(e) as Map<String, dynamic>)
-              .toList();
+      //products =
     });
+    log("Products: " + allProducts.toString());
   }
 
   Future<void> approveProduct(int index) async {
@@ -102,11 +99,11 @@ class _AddProductPageState extends State<SellerHomePage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_box_outlined),
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AddProductPage()),
+                MaterialPageRoute(builder: (_) => const Createproduct()),
               );
               loadProducts();
             },
@@ -124,6 +121,12 @@ class _AddProductPageState extends State<SellerHomePage> {
                     "Lukut Store",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
+                  ListTile(
+                    trailing: Icon(Icons.close),
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -137,6 +140,7 @@ class _AddProductPageState extends State<SellerHomePage> {
                       height: 110,
                     ),
                   ),
+
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -144,14 +148,16 @@ class _AddProductPageState extends State<SellerHomePage> {
                         MaterialPageRoute(builder: (context) => ProfilePage()),
                       );
                     },
-                    icon: const Icon(Icons.man),
+                    icon: const Icon(Icons.all_inclusive),
                     label: const Text("My Profile"),
                   ),
                 ],
               ),
               Divider(endIndent: 20, indent: 20),
               ListTile(
+                leading: const Icon(Icons.home),
                 title: const Text('Home'),
+                trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -160,27 +166,36 @@ class _AddProductPageState extends State<SellerHomePage> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.category),
                 title: const Text('Categories'),
+                trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   // Update the state of the app.
                   // ...
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.storefront),
                 title: const Text('All Products'),
+                trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  // Update the state of the app.
-                  // ...
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ProductListPage()),
+                  );
                 },
               ),
               ListTile(
-                title: const Text('Close'),
-                leading: Icon(Icons.close),
+                leading: const Icon(Icons.burst_mode),
+                title: const Text("Gallery"),
+                trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => GalleryPage()),
+                  );
                 },
               ),
-              const Divider(),
               ListTile(
                 leading: const Icon(Icons.shopping_bag),
                 title: const Text("My Orders"),
@@ -245,98 +260,114 @@ class _AddProductPageState extends State<SellerHomePage> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          products.isEmpty
-              ? const Center(child: Text("No products added yet."))
-              : ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  final isApproved = product['isApproved'] == true;
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    color: isApproved ? Colors.white : Colors.yellow[100],
-                    child: ListTile(
-                      leading:
-                          product['image'] != null
-                              ? Image.file(
-                                File(product['image']),
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              )
-                              : const Icon(Icons.image),
-                      title: Text(product['name']),
-                      subtitle: Text("Rs. ${product['price']}"),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!isApproved)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                              ),
-                              tooltip: "Approve",
-                              onPressed: () => approveProduct(index),
-                            ),
-                          if (isApproved)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.cancel,
-                                color: Colors.green,
-                              ),
-                              tooltip: "Approve",
-                              onPressed: () => cancelApproveProduct(index),
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              products.removeAt(index);
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              prefs.setStringList(
-                                "user_products",
-                                products.map((e) => jsonEncode(e)).toList(),
-                              );
-                              loadProducts();
-                            },
-                          ),
+          StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('products')
+                    .where('sellerId', isEqualTo: currentUserId)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('Something went wrong'));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final docs = snapshot.data!.docs;
 
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () async {
-                              final updatedProduct = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => EditProductPage(
-                                        product: products[index],
-                                        index: index,
-                                      ),
+              return SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final product = docs[index].data() as Map<String, dynamic>;
+                    final isApproved = product['isApproved'] == true;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      color: isApproved ? Colors.white : Colors.yellow[100],
+                      child: ListTile(
+                        leading: Expanded(
+                          child:
+                              product['image'] != null && product['image'] != ""
+                                  ? Image(
+                                    image: AssetImage(
+                                      "assets/" + product['image'],
+                                    ),
+                                    width: 50,
+                                    height: 100,
+                                  )
+                                  : const Icon(Icons.image, size: 80),
+                        ),
+                        title: Text(product['name']),
+                        subtitle: Text("Rs. ${product['price']}"),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (!isApproved)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
                                 ),
-                              );
+                                tooltip: "Approve",
+                                onPressed: () => approveProduct(index),
+                              ),
+                            if (isApproved)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.cancel,
+                                  color: Colors.green,
+                                ),
+                                tooltip: "Approve",
+                                onPressed: () => cancelApproveProduct(index),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () async {
+                                //products.removeAt(index);
+                                loadProducts();
+                              },
+                            ),
 
-                              if (updatedProduct != null) {
-                                setState(() {
-                                  products[index] = updatedProduct;
-                                });
-                                final prefs =
-                                    await SharedPreferences.getInstance();
-                                prefs.setStringList(
-                                  "user_products",
-                                  products.map((e) => jsonEncode(e)).toList(),
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () async {
+                                final updatedProduct = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => EditProductPage(
+                                          product: products[index],
+                                          index: index,
+                                        ),
+                                  ),
                                 );
-                              }
-                            },
-                          ),
-                        ],
+
+                                if (updatedProduct != null) {
+                                  setState(() {
+                                    products[index] = updatedProduct;
+                                  });
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  prefs.setStringList(
+                                    "user_products",
+                                    products.map((e) => jsonEncode(e)).toList(),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
 
           YoutubePlayer(controller: _controller, aspectRatio: 16 / 9),
           SizedBox(height: 10),
@@ -373,7 +404,7 @@ class _AddProductPageState extends State<SellerHomePage> {
           ),
           SizedBox(height: 20),
           Container(
-            height: 400,
+            height: 200,
             width: 400,
             child: StreamBuilder<QuerySnapshot>(
               stream:
@@ -429,7 +460,7 @@ class _AddProductPageState extends State<SellerHomePage> {
                                           )
                                           : const Icon(Icons.image, size: 80),
                                 ),*/
-                            Expanded(
+                            /*Expanded(
                               child:
                                   data['image'] != null && data['image'] != ""
                                       ? Image(
@@ -442,8 +473,7 @@ class _AddProductPageState extends State<SellerHomePage> {
                                         height: 110,
                                       )
                                       : const Icon(Icons.image, size: 80),
-                            ),
-
+                            ),*/
                             Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Column(

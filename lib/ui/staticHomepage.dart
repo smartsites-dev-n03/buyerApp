@@ -4,12 +4,11 @@ import 'dart:io';
 import 'package:buyerApp/ui/profilePage.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '/integration/googleLogin.dart';
-import 'package:buyerApp/loginPage.dart';
 import 'package:buyerApp/ui/cartPage.dart';
 import 'package:buyerApp/ui/productDetailPage.dart';
 import 'package:buyerApp/ui/splash.dart';
@@ -24,6 +23,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String cartId = "";
   TextEditingController _searchController = TextEditingController();
 
   List<Map<String, dynamic>> cartItems = [];
@@ -34,11 +36,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    loadCartItems();
     loadProfileImage();
     loadUserProducts();
     filteredProducts = products;
     fetchCarouselItems();
+    loadCartItems();
   }
 
   String? _imagePath;
@@ -177,7 +179,7 @@ class _HomePageState extends State<HomePage> {
     }
     setState(() {
       carouselItems = ids;
-      log(carouselItems.toString());
+      //log(carouselItems.toString());
     });
   }
 
@@ -235,44 +237,69 @@ class _HomePageState extends State<HomePage> {
     {'image': 'assets/cyber-monday.jpg', 'name': 'GoPro HERO 13 Black'},
   ];
 
-  Future<void> loadCartItems() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> cart = prefs.getStringList('cart') ?? [];
-
-    setState(() {
-      cartItems =
-          cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
-    });
-  }
-
-  Future<void> addCartItems(Map<String, dynamic> product) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> cart = prefs.getStringList('cart') ?? [];
-
-    /*cart.add(jsonEncode(product));
-    await prefs.setStringList('cart', cart);*/
-
-    List<Map<String, dynamic>> cartList =
-        cart.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
-
-    int index = cartList.indexWhere((item) => item['name'] == product['name']);
-    log("got index:" + index.toString());
-    if (index != -1) {
-      cartList[index]['qty'] = (cartList[index]['qty'] ?? 1) + 1;
-    } else {
-      product['qty'] = 1;
-      cartList.add(product);
+  Future<void> addToCart(Map<String, dynamic> product) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to purchase')),
+      );
+      return;
     }
-    await prefs.setStringList(
-      'cart',
-      cartList.map((item) => jsonEncode(item)).toList(),
-    );
+    cartId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    loadCartItems();
-    // log(cart.toString());
+    final cartRef = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('cart')
+        .doc(cartId);
+
+    final existing = await cartRef.get();
+
+    if (existing.exists) {
+      final currentQty = existing.data()?['qty'] ?? 1;
+      await cartRef.update({'qty': currentQty + 1, 'isCheckout': false});
+    } else {
+      await cartRef.set({
+        'name': product['name'],
+        'price': product['price'],
+        'image': product['image'],
+        'qty': 1,
+        'isCheckout': false,
+        'isDelivered': false,
+        'cartId': cartId,
+      });
+    }
+
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("Added item to cart.")));
+    ).showSnackBar(const SnackBar(content: Text('Added to cart!')));
+  }
+
+  Future<void> loadCartItems() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    final cartSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('cart')
+            .get();
+
+    // Extracting the document data
+    List<Map<String, dynamic>> cartProducts =
+        cartSnapshot.docs.map((doc) {
+          return doc.data();
+        }).toList();
+
+    setState(() {
+      cartItems = cartProducts;
+    });
+
+    log(cartItems.toString());
   }
 
   @override
@@ -281,7 +308,6 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         elevation: 0,
         automaticallyImplyLeading: true,
-        //title: Text("Lukut Store", style: TextStyle(fontWeight: FontWeight.bold),),
         title: TextField(
           controller: _searchController,
           decoration: InputDecoration(
@@ -320,10 +346,9 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => CartPage()),
-                    ).then((_) => loadCartItems());
+                    );
                   },
                 ),
-
                 if (cartItems.isNotEmpty)
                   Positioned(
                     right: 4,
@@ -511,10 +536,9 @@ class _HomePageState extends State<HomePage> {
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(0),
                           image: DecorationImage(
-                            image: AssetImage(imageUrl),
-                            //image: NetworkImage(imageUrl),
+                            image: NetworkImage(imageUrl),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -693,7 +717,7 @@ class _HomePageState extends State<HomePage> {
                         image: product['image'],
                         name: product['name'],
                         price: product['price'],
-                        onAddToCart: () => addCartItems(product),
+                        //onAddToCart: () => addCartItems(product),
                       ),
                     );
                   },
@@ -749,14 +773,15 @@ class _HomePageState extends State<HomePage> {
 class ProductCard extends StatelessWidget {
   final String image, name;
   final double price;
-  final VoidCallback onAddToCart;
+
+  //final VoidCallback onAddToCart;
 
   const ProductCard({
     super.key,
     required this.image,
     required this.name,
     required this.price,
-    required this.onAddToCart,
+    //required this.onAddToCart,
   });
 
   @override
@@ -791,10 +816,10 @@ class ProductCard extends StatelessWidget {
               style: const TextStyle(fontSize: 14, color: Colors.green),
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
+            /*ElevatedButton(
               onPressed: onAddToCart,
               child: const Text('Add to Cart'),
-            ),
+            ),*/
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class Createproduct extends StatefulWidget {
@@ -15,21 +16,43 @@ class _CreateproductState extends State<Createproduct> {
   final TextEditingController priceController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   bool _isChecked = false;
+  String productId = DateTime.now().millisecondsSinceEpoch.toString();
 
-  Future<void> createProduct({
-    required String name,
-    required String price,
-    required String description,
-    required bool isFeatured,
-  }) async {
-    final String imageUrl = "male-daura.jpg";
-    await FirebaseFirestore.instance.collection('products').add({
-      'name': name,
-      'price': price,
-      'image': imageUrl,
-      'description': description,
-      'isFeatured': isFeatured,
-    });
+  String generateProductId() {
+    return DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
+  Future<void> createProduct() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    final name = nameController.text.trim();
+    final price = double.tryParse(priceController.text) ?? 0.0;
+    final description = descriptionController.text.trim();
+    bool isFeatured = _isChecked;
+
+    if (name.isEmpty || price == 0.0 || description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all fields properly")),
+      );
+      return;
+    } else {
+      final String imageUrl = "male-daura.jpg";
+      await FirebaseFirestore.instance.collection('products').add({
+        'name': name,
+        'price': price,
+        'image': imageUrl,
+        'description': description,
+        'isFeatured': isFeatured,
+        'id': generateProductId(),
+        'sellerId': user.uid,
+      });
+
+      nameController.clear();
+    }
   }
 
   @override
@@ -67,12 +90,7 @@ class _CreateproductState extends State<Createproduct> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                createProduct(
-                  name: nameController.text,
-                  price: priceController.text,
-                  description: descriptionController.text,
-                  isFeatured: _isChecked,
-                );
+                createProduct();
               },
               child: const Text("Save Product"),
             ),
