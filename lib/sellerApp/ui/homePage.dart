@@ -7,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../ui/productDetailPage.dart';
 import '../../ui/productListPage.dart';
@@ -15,6 +14,8 @@ import '../../ui/profilePage.dart';
 import '../../ui/splash.dart';
 import 'addProductPage.dart';
 import 'editProductPage.dart';
+import 'package:http/http.dart' as http;
+import '../model/itemModel.dart';
 
 class SellerHomePage extends StatefulWidget {
   const SellerHomePage({super.key});
@@ -25,25 +26,37 @@ class SellerHomePage extends StatefulWidget {
 
 class _AddProductPageState extends State<SellerHomePage> {
   List<Map<String, dynamic>> products = [];
-  List<String> videoIds = [];
 
-  final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  BarrelStock? selectedStock;
+
+  //final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
     super.initState();
-    loadProducts();
-    fetchYtbVideos();
+    //loadProducts();
+    fetchStockData();
   }
 
-  Future<void> fetchYtbVideos() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('youtube_videos').get();
+  Future<List<BarrelStock>> fetchStockData() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    final response = await http.get(
+      Uri.parse(
+        'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-stock-analysis?offset=0&limit=20&ordering=-id',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${preferences.getString("accessToken")}',
+      },
+    );
 
-    List<String> ids = [];
-    for (var doc in snapshot.docs) {
-      final List<dynamic> videoList = doc['videoId'];
-      ids.addAll(videoList.map((e) => e.toString()));
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      final parsed = BarrelStockAnalysisResponse.fromJson(jsonData);
+      return parsed.results;
+    } else {
+      throw Exception("Failed to fetch data");
     }
   }
 
@@ -80,12 +93,6 @@ class _AddProductPageState extends State<SellerHomePage> {
     );
   }
 
-  final _controller = YoutubePlayerController.fromVideoId(
-    videoId: 'sivn5BX3Lic',
-    autoPlay: false,
-    params: const YoutubePlayerParams(showFullscreenButton: true),
-  );
-
   @override
   Widget build(BuildContext context) {
     // You can filter approved products like this:
@@ -103,7 +110,7 @@ class _AddProductPageState extends State<SellerHomePage> {
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const Createproduct()),
+                MaterialPageRoute(builder: (_) => const AddProductPage()),
               );
               loadProducts();
             },
@@ -260,7 +267,45 @@ class _AddProductPageState extends State<SellerHomePage> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          StreamBuilder<QuerySnapshot>(
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: FutureBuilder<List<BarrelStock>>(
+              future: fetchStockData(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator();
+                } else if (snapshot.hasError) {
+                  return Text("Error: ${snapshot.error}");
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Text("No data found");
+                }
+
+                final stockList = snapshot.data!;
+
+                return DropdownButtonFormField<BarrelStock>(
+                  value: selectedStock,
+                  hint: Text("Select Item"),
+                  items:
+                      stockList.map((stock) {
+                        return DropdownMenuItem(
+                          value: stock,
+                          child: Text(stock.item.name),
+                        );
+                      }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedStock = value;
+                    });
+                    print(
+                      "Selected: ${value!.item.name}, Batch: ${value.batchNo}, Qty: ${value.quantity}",
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          /*StreamBuilder<QuerySnapshot>(
             stream:
                 FirebaseFirestore.instance
                     .collection('products')
@@ -367,35 +412,7 @@ class _AddProductPageState extends State<SellerHomePage> {
                 ),
               );
             },
-          ),
-
-          YoutubePlayer(controller: _controller, aspectRatio: 16 / 9),
-          SizedBox(height: 10),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 2,
-                mainAxisSpacing: 2,
-              ),
-              itemCount: videoIds.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    _controller.loadVideoById(videoId: videoIds[index]);
-                  },
-                  child: Container(
-                    child: Image.network(
-                      "https://img.youtube.com/vi/${videoIds[index]}/hqdefault.jpg",
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
+          ),*/
           SizedBox(height: 5),
 
           Text(
@@ -498,8 +515,6 @@ class _AddProductPageState extends State<SellerHomePage> {
               },
             ),
           ),
-
-          SizedBox(height: 20),
         ],
       ),
     );

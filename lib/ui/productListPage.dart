@@ -4,74 +4,132 @@ import 'dart:io';
 import 'package:buyerApp/sellerApp/ui/createProduct.dart';
 import 'package:buyerApp/ui/galleryPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../ui/productDetailPage.dart';
 import '../../ui/profilePage.dart';
 import '../../ui/splash.dart';
+import 'package:http/http.dart' as http;
+import 'package:buyerApp/sellerApp/model/allItemsModel.dart';
 
-import 'package:buyerApp/sellerApp/ui/editProductPage.dart';
+import '../sellerApp/model/barrelFilterItemsModel.dart';
+import '../sellerApp/model/barrelDropdownItemsModel.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
 
   @override
-  State<ProductListPage> createState() => _AddProductPageState();
+  State<ProductListPage> createState() => _ProductListPageState();
 }
 
-class _AddProductPageState extends State<ProductListPage> {
+class _ProductListPageState extends State<ProductListPage> {
   List<Map<String, dynamic>> products = [];
+  List<BarrelFilterStock> tableData = [];
 
-  final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  BarrelStock? selectedStock;
+  BarrelDropdownStock? selectedDropdownStock;
+  BarrelFilterStock? selectedFilterStock;
 
   @override
   void initState() {
     super.initState();
-    loadProducts();
+
+    fetchStockItems();
+    //fetchBarrelDropdownItems();
+
+    fetchAndSetTableData();
   }
 
-  Future<void> loadProducts() async {
-    final allProducts = FirebaseFirestore.instance.collection('products').get();
-
-    log("Products: " + allProducts.toString());
+  void fetchAndSetTableData({String? code}) async {
+    try {
+      final data = await fetchBarrelFilterItems(code: code);
+      setState(() {
+        tableData = data;
+      });
+    } catch (e) {
+      print("Error fetching filtered data: $e");
+    }
   }
 
-  Future<void> approveProduct(int index) async {
-    setState(() {
-      products[index]['isApproved'] = true;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList(
-      "user_products",
-      products.map((e) => jsonEncode(e)).toList(),
+  Future<List<BarrelStock>> fetchStockItems() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    final response = await http.get(
+      Uri.parse(
+        'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-item',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${preferences.getString("accessToken")}',
+      },
     );
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      final parsed = BarrelStockAnalysisItemsResponse.fromJson(jsonData);
+      return parsed.results;
+    } else {
+      throw Exception("Failed to fetch data");
+    }
   }
 
-  Future<void> cancelApproveProduct(int index) async {
-    setState(() {
-      products[index]['isApproved'] = false;
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList(
-      "user_products",
-      products.map((e) => jsonEncode(e)).toList(),
+  Future<List<BarrelDropdownStock>> fetchBarrelDropdownItems() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    final response = await http.get(
+      Uri.parse(
+        'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-inbound-code',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${preferences.getString("accessToken")}',
+      },
     );
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      final parsed = BarrelDropdownItemsResponse.fromJson(jsonData);
+      return parsed.results;
+    } else {
+      throw Exception("Failed to fetch data");
+    }
+  }
+
+  Future<List<BarrelFilterStock>> fetchBarrelFilterItems({String? code}) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    // Build the URL with optional query parameter
+    String url =
+        'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-inbound-code';
+    if (code != null && code.isNotEmpty) {
+      url += '?code=$code';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${preferences.getString("accessToken")}',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      final parsed = BarrelFilterItemsResponse.fromJson(jsonData);
+      return parsed.results;
+    } else {
+      throw Exception("Failed to fetch data");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // You can filter approved products like this:
-    final approvedProducts =
-        products.where((p) => p['isApproved'] == true).toList();
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "All Products",
+          "API Products",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         actions: [
@@ -82,251 +140,203 @@ class _AddProductPageState extends State<ProductListPage> {
                 context,
                 MaterialPageRoute(builder: (_) => const Createproduct()),
               );
-              loadProducts();
             },
           ),
         ],
       ),
-      drawer: Drawer(
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Column(
-                children: [
-                  Text(
-                    "Lukut Store",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                  ),
-                  ListTile(
-                    trailing: Icon(Icons.close),
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProfilePage()),
-                      );
-                    },
-                    child: Image(
-                      image: AssetImage("assets/drawer-image.png"),
-                      width: MediaQuery.of(context).size.width / 2,
-                      height: 110,
-                    ),
-                  ),
 
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProfilePage()),
-                      );
-                    },
-                    icon: const Icon(Icons.all_inclusive),
-                    label: const Text("My Profile"),
-                  ),
-                ],
-              ),
-              Divider(endIndent: 20, indent: 20),
-              ListTile(
-                leading: const Icon(Icons.home),
-                title: const Text('Home'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ProductListPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.category),
-                title: const Text('Categories'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Update the state of the app.
-                  // ...
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.storefront),
-                title: const Text('All Products'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Update the state of the app.
-                  // ...
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.burst_mode),
-                title: const Text("Gallery"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => GalleryPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.shopping_bag),
-                title: const Text("My Orders"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Navigate to Orders
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.favorite_border),
-                title: const Text("Wishlist"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Navigate to Wishlist
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.location_on),
-                title: const Text("My Addresses"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Navigate to Addresses
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text("Settings"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Navigate to Settings
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text("Help & Support"),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  // Navigate to Help
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text(
-                  "Logout",
-                  style: TextStyle(color: Colors.red),
-                ),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FutureBuilder<List<BarrelStock>>(
+                future: fetchStockItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text("Error: ${snapshot.error}");
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Text("No data found");
+                  }
 
-                onTap: () async {
-                  SharedPreferences logoutPref =
-                      await SharedPreferences.getInstance();
-                  logoutPref.clear();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => SplashPage()),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('products')
-                //.where('sellerId', isEqualTo: currentUserId)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text('Something went wrong'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final docs = snapshot.data!.docs;
+                  final stockList = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final product = docs[index].data() as Map<String, dynamic>;
-              final isApproved = product['isApproved'] == true;
-
-              return ListTile(
-                shape: Border(bottom: BorderSide(color: Colors.black12)),
-                leading: Expanded(
-                  child:
-                      product['image'] != null && product['image'] != ""
-                          ? Image(
-                            image: AssetImage("assets/" + product['image']),
-                            width: 50,
-                            height: 100,
-                          )
-                          : const Icon(Icons.image, size: 80),
-                ),
-                title: Text(product['name']),
-                subtitle: Text("Rs. ${product['price']}"),
-                //isThreeLine: true,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!isApproved)
-                      IconButton(
-                        icon: const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                        ),
-                        tooltip: "Approve",
-                        onPressed: () => approveProduct(index),
-                      ),
-                    if (isApproved)
-                      IconButton(
-                        icon: const Icon(Icons.cancel, color: Colors.green),
-                        tooltip: "Approve",
-                        onPressed: () => cancelApproveProduct(index),
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () async {
-                        //products.removeAt(index);
-                        loadProducts();
-                      },
-                    ),
-
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () async {
-                        final updatedProduct = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => EditProductPage(
-                                  product: products[index],
-                                  index: index,
-                                ),
-                          ),
-                        );
-
-                        if (updatedProduct != null) {
-                          setState(() {
-                            products[index] = updatedProduct;
-                          });
-                          final prefs = await SharedPreferences.getInstance();
-                          prefs.setStringList(
-                            "user_products",
-                            products.map((e) => jsonEncode(e)).toList(),
+                  return DropdownButtonFormField<BarrelStock>(
+                    value: selectedStock,
+                    hint: Text("Select Item"),
+                    items:
+                        stockList.map((stock) {
+                          return DropdownMenuItem(
+                            value: stock,
+                            child: Text(stock.name),
                           );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStock = value;
+                      });
+                      /*print(
+                        "Selected: ${value!.item.name}, Batch: ${value.batchNo}, Qty: ${value.quantity}",
+                      );*/
+
+                      log("Selected: " + selectedStock.toString());
+                    },
+                  );
+                },
+              ),
+            ),
+
+            /*Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FutureBuilder<List<BarrelStock>>(
+                future: fetchStockItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text("Error: ${snapshot.error}");
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Text("No data found");
+                  }
+
+                  final stockList = snapshot.data!;
+                  return DataTable(
+                    columns: const [
+                      DataColumn(label: Text('ID')),
+                      DataColumn(label: Text('Name')),
+                      DataColumn(label: Text('Code')),
+                      DataColumn(label: Text('Description')),
+                    ],
+                    rows:
+                        stockList.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(item.id.toString())),
+                              DataCell(Text(item.name)),
+                              DataCell(Text(item.code)),
+                              DataCell(Text(item.description.name)),
+                            ],
+                          );
+                        }).toList(),
+                  );
+                },
+              ),
+            ),*/
+            Divider(),
+            Text(
+              "Filter your data:",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FutureBuilder<List<BarrelDropdownStock>>(
+                future: fetchBarrelDropdownItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text("Error: ${snapshot.error}");
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Text("No data found");
+                  }
+
+                  final filterStockList = snapshot.data!;
+
+                  return DropdownButtonFormField<BarrelDropdownStock>(
+                    value: selectedDropdownStock,
+                    //value: null,
+                    hint: Text("Select Code to Filter"),
+                    items:
+                        filterStockList.map((stock) {
+                          return DropdownMenuItem(
+                            value: stock,
+                            child: Text(stock.code),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedDropdownStock = value;
+                      });
+
+                      final selectedCode = value?.code;
+
+                      log(selectedCode.toString());
+                      /*if (selectedCode != null && selectedCode.isNotEmpty) {
+                        fetchBarrelFilterItems({code: selectedCode});
+                      }*/
+
+                      if (selectedCode != null && selectedCode.isNotEmpty) {
+                        fetchAndSetTableData(
+                          code: selectedCode,
+                        ); // Pass to your data-fetching function
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            DataTable(
+              headingRowColor: MaterialStateProperty.all(Colors.grey[300]),
+              columns: const [
+                DataColumn(label: Text('ID')),
+                DataColumn(label: Text('Code')),
+                DataColumn(label: Text('B. Capacity')),
+                DataColumn(label: Text('Location')),
+              ],
+              rows:
+                  tableData.map((stock) {
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(stock.id.toString())),
+                        DataCell(Text(stock.code ?? '')),
+                        DataCell(Text(stock.barrelDetail.capacity)),
+                        DataCell(Text(stock.location.name)),
+                      ],
+                    );
+                  }).toList(),
+            ),
+            /*Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FutureBuilder<List<BarrelFilterStock>>(
+                future: fetchBarrelFilterItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text("Error: ${snapshot.error}");
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Text("No data found");
+                  }
+
+                  final stockList = snapshot.data!;
+                  return DataTable(
+                    columns: const [
+                      DataColumn(label: Text('ID')),
+                      DataColumn(label: Text('Code')),
+                      DataColumn(label: Text('B. Capacity')),
+                      DataColumn(label: Text('Location')),
+                    ],
+                    rows:
+                        stockList.map((item) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(item.id.toString())),
+                              DataCell(Text(item.code)),
+                              DataCell(Text(item.barrelDetail.capacity)),
+                              DataCell(Text(item.location.name)),
+                            ],
+                          );
+                        }).toList(),
+                  );
+                },
+              ),
+            ),*/
+          ],
+        ),
       ),
     );
   }

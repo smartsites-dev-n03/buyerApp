@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:buyerApp/sellerApp/ui/homePage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -100,75 +101,47 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future postLogin() async {
-    final FirebaseAuth _auth = FirebaseAuth.instance;
-    /*setState(() {
-      _isLoading = true;
-    });*/
-    SharedPreferences userPefs = await SharedPreferences.getInstance();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final response = await http.post(
+      Uri.parse(
+        'https://api-barrel.sooritechnology.com.np/api/v1/user-app/login',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: json.encode({"userName": "admin123", "password": "123nepal"}),
+    );
 
-    try {
-      final UserCredential userCredential = await _auth
-          .signInWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text,
+    if (response.statusCode == 200) {
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+      preferences.setString(
+        "accessToken",
+        jsonDecode(response.body)['tokens']['access'],
+      );
+
+      setState(() => _isLoading = false);
+      _tabTextIndexSelected == 1
+          ? Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => SellerHomePage()),
+          )
+          : Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => Mainpage()),
           );
-
-      final User? user = userCredential.user;
-      log("User returned ");
-
-      if (user != null) {
-        setState(() {
-          _isLoading = false;
-        });
-        _tabTextIndexSelected == 1
-            ? Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => sellerMainPage()),
-            )
-            : Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => Mainpage()),
-            );
-      }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
+    } else {
+      _passwordController.clear();
+      setState(() => _isLoading = false);
       Fluttertoast.showToast(
-        msg: "Invalid User!",
+        msg: "Invalid credentials",
         toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.CENTER,
-        timeInSecForIosWeb: 1,
         backgroundColor: Colors.red,
         textColor: Colors.white,
-        fontSize: 16.0,
       );
-      // _emailController.clear();
-      // _passwordController.clear();
-
-      if (e.code == 'user-not-found') {
-        print('No user found for that email.');
-      } else if (e.code == 'wrong-password') {
-        Fluttertoast.showToast(
-          msg: "Wrong password!",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.CENTER,
-          timeInSecForIosWeb: 1,
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-          fontSize: 16.0,
-        );
-        print('Wrong password provided for that user.');
-      }
     }
+    return response;
   }
-
-  /*@override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }*/
 
   @override
   Widget build(BuildContext context) {
