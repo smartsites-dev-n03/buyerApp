@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 import 'package:buyerApp/sellerApp/ui/createProduct.dart';
 import 'package:buyerApp/ui/galleryPage.dart';
+import 'package:buyerApp/ui/productGridPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -183,12 +184,24 @@ class _AddProductPageState extends State<SellerHomePage> {
               ),
               ListTile(
                 leading: const Icon(Icons.storefront),
-                title: const Text('All Products'),
+                title: const Text('All List Products'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => ProductListPage()),
+                  );
+                },
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.storefront),
+                title: const Text('Grid Products'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ProductGridPage()),
                   );
                 },
               ),

@@ -25,19 +25,17 @@ class ProductListPage extends StatefulWidget {
 
 class _ProductListPageState extends State<ProductListPage> {
   List<Map<String, dynamic>> products = [];
-  List<BarrelFilterStock> tableData = [];
 
   BarrelStock? selectedStock;
   BarrelDropdownStock? selectedDropdownStock;
   BarrelFilterStock? selectedFilterStock;
+  List<BarrelFilterStock> tableData = [];
 
   @override
   void initState() {
     super.initState();
-
     fetchStockItems();
     //fetchBarrelDropdownItems();
-
     fetchAndSetTableData();
   }
 
@@ -99,7 +97,6 @@ class _ProductListPageState extends State<ProductListPage> {
   Future<List<BarrelFilterStock>> fetchBarrelFilterItems({String? code}) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
 
-    // Build the URL with optional query parameter
     String url =
         'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-inbound-code';
     if (code != null && code.isNotEmpty) {
@@ -149,6 +146,8 @@ class _ProductListPageState extends State<ProductListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            /*
+            //API data to dropdown
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: FutureBuilder<List<BarrelStock>>(
@@ -178,18 +177,14 @@ class _ProductListPageState extends State<ProductListPage> {
                       setState(() {
                         selectedStock = value;
                       });
-                      /*print(
-                        "Selected: ${value!.item.name}, Batch: ${value.batchNo}, Qty: ${value.quantity}",
-                      );*/
-
                       log("Selected: " + selectedStock.toString());
                     },
                   );
                 },
               ),
             ),
-
-            /*Padding(
+            //API data to datatable
+            Padding(
               padding: const EdgeInsets.all(8.0),
               child: FutureBuilder<List<BarrelStock>>(
                 future: fetchStockItems(),
@@ -248,7 +243,6 @@ class _ProductListPageState extends State<ProductListPage> {
 
                   return DropdownButtonFormField<BarrelDropdownStock>(
                     value: selectedDropdownStock,
-                    //value: null,
                     hint: Text("Select Code to Filter"),
                     items:
                         filterStockList.map((stock) {

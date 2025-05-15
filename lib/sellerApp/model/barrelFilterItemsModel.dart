@@ -25,7 +25,9 @@ class BarrelFilterItemsResponse {
 
 class BarrelFilterStock {
   final int id;
+  final String? currentItem;
   final String code;
+  final double currentPercentageVolume;
   final String currentVolume;
   final Descriptions barrelDetail;
   final Location location;
@@ -33,7 +35,9 @@ class BarrelFilterStock {
   BarrelFilterStock({
     required this.id,
     required this.currentVolume,
+    required this.currentItem,
     required this.code,
+    required this.currentPercentageVolume,
     required this.barrelDetail,
     required this.location,
   });
@@ -43,6 +47,8 @@ class BarrelFilterStock {
       id: json['id'],
       currentVolume: json['currentVolume'],
       code: json['code'],
+      currentItem: json['currentItem'],
+      currentPercentageVolume: json['currentPercentageVolume'],
       barrelDetail: Descriptions.fromJson(json['barrelDetail']),
       location: Location.fromJson(json['location']),
     );

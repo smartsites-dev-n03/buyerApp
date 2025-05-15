@@ -4,6 +4,8 @@ import 'package:buyerApp/sellerApp/ui/homePage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_toggle_tab/flutter_toggle_tab.dart';
 import 'package:local_auth/local_auth.dart';
@@ -17,6 +19,7 @@ import 'integration/googleLogin.dart';
 import 'package:buyerApp/mainPage.dart';
 import 'sellerApp/sellerMainPage.dart';
 import 'package:buyerApp/ui/staticHomepage.dart';
+import 'main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -51,7 +54,37 @@ class _LoginPageState extends State<LoginPage> {
     _emailController = TextEditingController(text: "ss.dev.no3@gmail.com");
     _passwordController = TextEditingController(text: "Flutter@1");
 
-    _checkBiometrics();
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("📩 Foreground message received");
+      print("Title: ${message.notification?.title}");
+      print("Body: ${message.notification?.body}");
+      print("Data: ${message.data}");
+
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'classbroadway_channel',
+              'Classbroadway Notifications',
+              importance: Importance.max,
+              priority: Priority.high,
+            ),
+          ),
+        );
+      }
+
+      _checkBiometrics();
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('App opened via notification');
+    });
   }
 
   Future<void> _checkBiometrics() async {
