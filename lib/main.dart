@@ -1,4 +1,6 @@
 import 'package:buyerApp/mainPage.dart';
+import 'package:buyerApp/providers/dropdownProvider.dart';
+import 'package:buyerApp/providers/loginProvider.dart';
 import 'package:buyerApp/sellerApp/sellerMainPage.dart';
 import 'package:buyerApp/signUpPage.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,6 +11,7 @@ import 'package:khalti_flutter/khalti_flutter.dart';
 import 'package:buyerApp/enterOtpPage.dart';
 import 'package:buyerApp/ui/splash.dart';
 import 'package:buyerApp/ui/staticHomepage.dart';
+import 'package:provider/provider.dart';
 import 'loginPage.dart';
 import 'forgotPasswordPage.dart';
 import 'integration/notificationServices.dart';
@@ -33,7 +36,18 @@ void main() async {
     android: androidSettings,
   );
   await flutterLocalNotificationsPlugin.initialize(initSettings);
-  runApp(const MyApp());
+
+  //runApp(const MyApp());
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LoginProvider()),
+        ChangeNotifierProvider(create: (_) => StockProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

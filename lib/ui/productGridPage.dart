@@ -107,50 +107,50 @@ class _ProductGridPageState extends State<ProductGridPage> {
               final data = filterStockList[index];
 
               return Card(
-                elevation: 5,
+                elevation: 10,
+                //margin: EdgeInsets.all(16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Container(
+                child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Stack(
                         alignment: Alignment.bottomCenter,
                         children: [
-                          Image.asset('assets/emptyBarrel.png'),
+                          Image.asset(
+                            'assets/emptyBarrel.png',
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.contain,
+                          ),
                           ClipRect(
                             child: Align(
                               alignment: Alignment.bottomCenter,
                               heightFactor: data.currentPercentageVolume / 10,
-                              child: Image.asset('assets/filledBarrel.png'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text(
-                        "Location: " + data.location.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        data.barrelDetail.capacity,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-
-                      Row(
-                        children: [
-                          Container(
-                            child: Text(
-                              data.code,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                              child: Image.asset(
+                                'assets/filledBarrel.png',
+                                height: 150,
+                                width: double.infinity,
+                                fit: BoxFit.contain,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 10),
+
+                      Text(
+                        "Location: " +
+                            data.location.prefix +
+                            "-" +
+                            data.location.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text("Capacity: " + data.barrelDetail.capacity),
+                      Text("Code: " + data.code),
                     ],
                   ),
                 ),

@@ -7,9 +7,14 @@ import 'package:buyerApp/ui/productGridPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../extraDose/animation.dart';
+import '../../providers/dropdownProvider.dart';
+import '../../ui/categoryListPage.dart';
 import '../../ui/productDetailPage.dart';
+import '../../ui/productListDetailPage.dart';
 import '../../ui/productListPage.dart';
 import '../../ui/profilePage.dart';
 import '../../ui/splash.dart';
@@ -28,7 +33,7 @@ class SellerHomePage extends StatefulWidget {
 class _AddProductPageState extends State<SellerHomePage> {
   List<Map<String, dynamic>> products = [];
 
-  BarrelStock? selectedStock;
+  String? _selectedItem = "Select Item";
 
   //final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
@@ -36,29 +41,10 @@ class _AddProductPageState extends State<SellerHomePage> {
   void initState() {
     super.initState();
     //loadProducts();
-    fetchStockData();
-  }
-
-  Future<List<BarrelStock>> fetchStockData() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    final response = await http.get(
-      Uri.parse(
-        'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-stock-analysis?offset=0&limit=20&ordering=-id',
-      ),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ${preferences.getString("accessToken")}',
-      },
+    // fetchStockData();
+    Future.microtask(
+      () => Provider.of<StockProvider>(context, listen: false).fetchStockData(),
     );
-
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-      final parsed = BarrelStockAnalysisResponse.fromJson(jsonData);
-      return parsed.results;
-    } else {
-      throw Exception("Failed to fetch data");
-    }
   }
 
   Future<void> loadProducts() async {
@@ -178,8 +164,10 @@ class _AddProductPageState extends State<SellerHomePage> {
                 title: const Text('Categories'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  // Update the state of the app.
-                  // ...
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CategoryListPage()),
+                  );
                 },
               ),
               ListTile(
@@ -193,6 +181,19 @@ class _AddProductPageState extends State<SellerHomePage> {
                   );
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.storefront),
+                title: const Text('Product Details'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => productListDetailPage(),
+                    ),
+                  );
+                },
+              ),
 
               ListTile(
                 leading: const Icon(Icons.storefront),
@@ -202,6 +203,17 @@ class _AddProductPageState extends State<SellerHomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => ProductGridPage()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.animation),
+                title: const Text('Animation'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AnimateDemoPage()),
                   );
                 },
               ),
@@ -282,24 +294,20 @@ class _AddProductPageState extends State<SellerHomePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: FutureBuilder<List<BarrelStock>>(
-              future: fetchStockData(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  return Text("Error: ${snapshot.error}");
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Text("No data found");
+            child: Consumer<StockProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoading) {
+                  return const CircularProgressIndicator();
+                } else if (provider.error != null) {
+                  return Text("Error: ${provider.error}");
+                } else if (provider.stockList.isEmpty) {
+                  return const Text("No data found");
                 }
 
-                final stockList = snapshot.data!;
-
                 return DropdownButtonFormField<BarrelStock>(
-                  value: selectedStock,
-                  hint: Text("Select Item"),
+                  hint: Text(_selectedItem!),
                   items:
-                      stockList.map((stock) {
+                      provider.stockList.map((stock) {
                         return DropdownMenuItem(
                           value: stock,
                           child: Text(stock.item.name),
@@ -307,7 +315,7 @@ class _AddProductPageState extends State<SellerHomePage> {
                       }).toList(),
                   onChanged: (value) {
                     setState(() {
-                      selectedStock = value;
+                      _selectedItem = value!.item.name;
                     });
                     print(
                       "Selected: ${value!.item.name}, Batch: ${value.batchNo}, Qty: ${value.quantity}",
@@ -318,114 +326,6 @@ class _AddProductPageState extends State<SellerHomePage> {
             ),
           ),
 
-          /*StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('products')
-                    .where('sellerId', isEqualTo: currentUserId)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('Something went wrong'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final docs = snapshot.data!.docs;
-
-              return SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final product = docs[index].data() as Map<String, dynamic>;
-                    final isApproved = product['isApproved'] == true;
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      color: isApproved ? Colors.white : Colors.yellow[100],
-                      child: ListTile(
-                        leading: Expanded(
-                          child:
-                              product['image'] != null && product['image'] != ""
-                                  ? Image(
-                                    image: AssetImage(
-                                      "assets/" + product['image'],
-                                    ),
-                                    width: 50,
-                                    height: 100,
-                                  )
-                                  : const Icon(Icons.image, size: 80),
-                        ),
-                        title: Text(product['name']),
-                        subtitle: Text("Rs. ${product['price']}"),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!isApproved)
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                ),
-                                tooltip: "Approve",
-                                onPressed: () => approveProduct(index),
-                              ),
-                            if (isApproved)
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.cancel,
-                                  color: Colors.green,
-                                ),
-                                tooltip: "Approve",
-                                onPressed: () => cancelApproveProduct(index),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () async {
-                                //products.removeAt(index);
-                                loadProducts();
-                              },
-                            ),
-
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () async {
-                                final updatedProduct = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) => EditProductPage(
-                                          product: products[index],
-                                          index: index,
-                                        ),
-                                  ),
-                                );
-
-                                if (updatedProduct != null) {
-                                  setState(() {
-                                    products[index] = updatedProduct;
-                                  });
-                                  final prefs =
-                                      await SharedPreferences.getInstance();
-                                  prefs.setStringList(
-                                    "user_products",
-                                    products.map((e) => jsonEncode(e)).toList(),
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),*/
           SizedBox(height: 5),
 
           Text(

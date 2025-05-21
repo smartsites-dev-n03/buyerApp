@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:buyerApp/providers/loginProvider.dart';
 import 'package:buyerApp/sellerApp/ui/homePage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_toggle_tab/flutter_toggle_tab.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:buyerApp/forgotPasswordPage.dart';
 import 'package:buyerApp/signUpPage.dart';
@@ -98,27 +100,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {});
   }
 
-  void _login() {
-    String email = _emailController.text.trim();
-    String password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter both email and password"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    postLogin();
-  }
-
   void _forgotPassword() {
     Navigator.push(
       context,
@@ -133,58 +114,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future postLogin() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final response = await http.post(
-      Uri.parse(
-        'https://api-barrel.sooritechnology.com.np/api/v1/user-app/login',
-      ),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: json.encode({"userName": "admin123", "password": "123nepal"}),
-    );
-
-    if (response.statusCode == 200) {
-      SharedPreferences preferences = await SharedPreferences.getInstance();
-      preferences.setString(
-        "accessToken",
-        jsonDecode(response.body)['tokens']['access'],
-      );
-
-      setState(() => _isLoading = false);
-      _tabTextIndexSelected == 1
-          ? Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => SellerHomePage()),
-          )
-          : Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => Mainpage()),
-          );
-    } else {
-      _passwordController.clear();
-      setState(() => _isLoading = false);
-      Fluttertoast.showToast(
-        msg: "Invalid credentials",
-        toastLength: Toast.LENGTH_SHORT,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-      );
-    }
-    return response;
-  }
-
   @override
   Widget build(BuildContext context) {
+    var loginProvider = Provider.of<LoginProvider>(context);
     return SafeArea(
       child: Scaffold(
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 80),
           child: SingleChildScrollView(
             child:
-                _isLoading == true
+                loginProvider.isLoading == true
                     ? Center(child: SpinKitWave(color: Colors.blue, size: 100))
                     : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,7 +351,17 @@ class _LoginPageState extends State<LoginPage> {
                               child: SizedBox(
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed: _login,
+                                  //onPressed: _login,
+                                  onPressed: () {
+                                    loginProvider.loginUser(
+                                      _emailController.text,
+                                      _passwordController.text,
+                                    );
+                                    loginProvider.postLogin(
+                                      context,
+                                      _tabTextIndexSelected,
+                                    );
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
                                     backgroundColor: Colors.blue,
@@ -580,7 +529,7 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           _isLoading = true;
         });
-        postLogin();
+        //postLogin();
       }
     } on PlatformException catch (e) {
       if (e.code == 'LockedOut') {

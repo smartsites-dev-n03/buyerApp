@@ -79,10 +79,22 @@ class Descriptions {
 class Location {
   final int id;
   final String name;
+  final String prefix;
+  final int department;
 
-  Location({required this.id, required this.name});
+  Location({
+    required this.id,
+    required this.name,
+    required this.prefix,
+    required this.department,
+  });
 
   factory Location.fromJson(Map<String, dynamic> json) {
-    return Location(id: json['id'], name: json['name']);
+    return Location(
+      id: json['id'],
+      name: json['name'],
+      prefix: json['prefix'],
+      department: json['department'],
+    );
   }
 }

@@ -24,6 +24,8 @@ class ProductListPage extends StatefulWidget {
 }
 
 class _ProductListPageState extends State<ProductListPage> {
+  TextEditingController searchTxtController = TextEditingController();
+
   List<Map<String, dynamic>> products = [];
 
   BarrelStock? selectedStock;
@@ -39,9 +41,9 @@ class _ProductListPageState extends State<ProductListPage> {
     fetchAndSetTableData();
   }
 
-  void fetchAndSetTableData({String? code}) async {
+  void fetchAndSetTableData({String? code, String? search}) async {
     try {
-      final data = await fetchBarrelFilterItems(code: code);
+      final data = await fetchBarrelFilterItems(code: code, search: search);
       setState(() {
         tableData = data;
       });
@@ -94,13 +96,20 @@ class _ProductListPageState extends State<ProductListPage> {
     }
   }
 
-  Future<List<BarrelFilterStock>> fetchBarrelFilterItems({String? code}) async {
+  Future<List<BarrelFilterStock>> fetchBarrelFilterItems({
+    String? code,
+    String? search,
+  }) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
 
     String url =
         'https://api-barrel.sooritechnology.com.np/api/v1/barrel-app/barrel-inbound-code';
     if (code != null && code.isNotEmpty) {
       url += '?code=$code';
+    }
+
+    if (search != null && search.isNotEmpty) {
+      url += '?search=$search';
     }
 
     final response = await http.get(
@@ -146,84 +155,41 @@ class _ProductListPageState extends State<ProductListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            /*
-            //API data to dropdown
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: FutureBuilder<List<BarrelStock>>(
-                future: fetchStockItems(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CircularProgressIndicator();
-                  } else if (snapshot.hasError) {
-                    return Text("Error: ${snapshot.error}");
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Text("No data found");
-                  }
-
-                  final stockList = snapshot.data!;
-
-                  return DropdownButtonFormField<BarrelStock>(
-                    value: selectedStock,
-                    hint: Text("Select Item"),
-                    items:
-                        stockList.map((stock) {
-                          return DropdownMenuItem(
-                            value: stock,
-                            child: Text(stock.name),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedStock = value;
-                      });
-                      log("Selected: " + selectedStock.toString());
-                    },
-                  );
-                },
-              ),
-            ),
-            //API data to datatable
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: FutureBuilder<List<BarrelStock>>(
-                future: fetchStockItems(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CircularProgressIndicator();
-                  } else if (snapshot.hasError) {
-                    return Text("Error: ${snapshot.error}");
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Text("No data found");
-                  }
-
-                  final stockList = snapshot.data!;
-                  return DataTable(
-                    columns: const [
-                      DataColumn(label: Text('ID')),
-                      DataColumn(label: Text('Name')),
-                      DataColumn(label: Text('Code')),
-                      DataColumn(label: Text('Description')),
-                    ],
-                    rows:
-                        stockList.map((item) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(item.id.toString())),
-                              DataCell(Text(item.name)),
-                              DataCell(Text(item.code)),
-                              DataCell(Text(item.description.name)),
-                            ],
-                          );
-                        }).toList(),
-                  );
-                },
-              ),
-            ),*/
             Divider(),
             Text(
               "Filter your data:",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: searchTxtController,
+                    decoration: const InputDecoration(
+                      labelText: "Search Product",
+                    ),
+                    onChanged: (value) {
+                      fetchAndSetTableData(search: value);
+                    },
+                  ),
+                ),
+                /*IconButton(
+                  onPressed: () {
+                    fetchAndSetTableData(search: searchTxtController.text);
+                  },
+                  icon: Icon(Icons.search),
+                  iconSize: 30,
+                ),*/
+                ElevatedButton.icon(
+                  onPressed: () {
+                    fetchAndSetTableData(search: searchTxtController.text);
+                  },
+                  icon: const Icon(Icons.search),
+                  label: const Text("Search"),
+                ),
+              ],
             ),
 
             Padding(
@@ -244,6 +210,9 @@ class _ProductListPageState extends State<ProductListPage> {
                   return DropdownButtonFormField<BarrelDropdownStock>(
                     value: selectedDropdownStock,
                     hint: Text("Select Code to Filter"),
+                    dropdownColor: Colors.grey,
+                    decoration: InputDecoration(fillColor: Colors.blueGrey),
+
                     items:
                         filterStockList.map((stock) {
                           return DropdownMenuItem(
